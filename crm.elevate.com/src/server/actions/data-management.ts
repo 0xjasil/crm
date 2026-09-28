@@ -768,13 +768,13 @@ export async function deleteService(input: DeleteInput){
 export async function createRequiredService(
   input: CreateRequiredServiceInput
 ): Promise<ActionResponse> {
-  return createService(input);
+  return createService({ name: input.name, price: 0 });
 }
 
 export async function updateRequiredService(
   input: UpdateRequiredServiceInput
 ): Promise<ActionResponse> {
-  return updateService(input);
+  return updateService({ id: input.id, name: input.name, price: 0 });
 }
 
 export async function deleteRequiredService(

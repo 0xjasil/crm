@@ -103,20 +103,6 @@ export const updateEnquiryStatusWithActivity = action
           },
         });
 
-        // Create activity entry
-        await tx.enquiryActivity.create({
-          data: {
-            type: ActivityType.STATUS_CHANGE,
-            title: generateActivityTitle(ActivityType.STATUS_CHANGE, previousStatus, newStatus),
-            description: statusRemarks,
-            previousStatus,
-            newStatus,
-            statusRemarks,
-            enquiryId: id,
-            createdByUserId: user.id,
-          },
-        });
-
         return updatedEnquiry;
       });
 
@@ -155,9 +141,7 @@ export const updateEnquiryStatusDirectToEnrolled = action
         throw new Error('Access denied');
       }
 
-      const previousStatus = existingEnquiry.status;
-
-      // Use transaction to update enquiry and create activity
+      // Use transaction to update enquiry
       const result = await prisma.$transaction(async (tx) => {
         // Update enquiry status to ENROLLED
         const updatedEnquiry = await tx.enquiry.update({
@@ -176,20 +160,6 @@ export const updateEnquiryStatusDirectToEnrolled = action
             createdBy: {
               select: { id: true, name: true, email: true, role: true },
             },
-          },
-        });
-
-        // Create activity entry for direct enrollment
-        await tx.enquiryActivity.create({
-          data: {
-            type: ActivityType.ENROLLMENT_DIRECT,
-            title: generateActivityTitle(ActivityType.ENROLLMENT_DIRECT),
-            description: statusRemarks || 'Direct enrollment completed without admission form',
-            previousStatus,
-            newStatus: EnquiryStatus.ENROLLED,
-            statusRemarks,
-            enquiryId: id,
-            createdByUserId: user.id,
           },
         });
 
