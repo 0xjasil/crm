@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { AdmissionStatus } from "@prisma/client";
 
 import {
   CreateReceiptInput,
@@ -82,7 +83,7 @@ export async function createReceipt(data: CreateReceiptInput) {
         data: {
           balance: newBalance > 0 ? newBalance : 0,
           nextDueDate: newBalance <= 0 ? null : nextDueDate,
-          status: newBalance <= 0 ? "CONFIRMED" : admission.status,
+          status: newBalance <= 0 ? AdmissionStatus.CONFIRMED : (admission.status || AdmissionStatus.PENDING),
         },
       });
 

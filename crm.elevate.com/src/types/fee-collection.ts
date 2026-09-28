@@ -47,7 +47,7 @@ export interface AdmissionWithReceiptsAndCourse {
   id: string;
   admissionNumber: string;
   candidateName: string;
-  status?: AdmissionStatus | string;
+  status?: AdmissionStatus;
   totalFee?: number;
   balance: number;
   agentName?: string;
