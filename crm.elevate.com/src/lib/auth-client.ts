@@ -82,7 +82,7 @@ export const authClient = {
     window.location.href = '/login';
   },
 
-  async changePassword({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
+  async changePassword({ currentPassword, newPassword, revokeOtherSessions }: { currentPassword: string; newPassword: string; revokeOtherSessions?: boolean }) {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';

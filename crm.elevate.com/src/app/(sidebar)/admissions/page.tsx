@@ -85,12 +85,25 @@ interface SimpleCourse {
   duration?: string | null;
 }
 
-interface AdmissionListResponse {
-  admissions: AdmissionWithRelations[];
-  totalCount: number;
-  currentPage: number;
-  totalPages: number;
-}
+type AdmissionListItem = {
+  id: string;
+  admissionNumber: string;
+  candidateName: string;
+  mobileNumber: string;
+  email: string | null;
+  status: AdmissionStatus;
+  createdAt: Date;
+  course: {
+    id: string;
+    name: string;
+  };
+  createdBy: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  [key: string]: any;
+};
 
 export default function AdmissionsPage() {
   const router = useRouter();
@@ -112,7 +125,7 @@ export default function AdmissionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [admissions, setAdmissions] = useState<AdmissionWithRelations[]>([]);
+  const [admissions, setAdmissions] = useState<AdmissionListItem[]>([]);
   const [courses, setCourses] = useState<SimpleCourse[]>([]);
   const [enquirySources, setEnquirySources] = useState<EnquirySource[]>([]);
   const [pagination, setPagination] = useState<{
@@ -136,7 +149,7 @@ export default function AdmissionsPage() {
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [admissionToDelete, setAdmissionToDelete] =
-    useState<AdmissionWithRelations | null>(null);
+    useState<AdmissionListItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Enquiry pre-fill state
@@ -217,7 +230,7 @@ export default function AdmissionsPage() {
       const result = await getAdmissions(filters);
 
       if (result.data?.success) {
-        const data = result.data.data as AdmissionListResponse;
+        const data = result.data.data;
         setAdmissions(data.admissions || []);
         setPagination({
           page: data.currentPage,
@@ -248,16 +261,16 @@ export default function AdmissionsPage() {
     router.push(`/admissions/${admissionId}`);
   };
 
-  const handleEditAdmission = (admission: AdmissionWithRelations) => {
+  const handleEditAdmission = (admission: AdmissionListItem) => {
     if (!isAdmin) {
       toast.error("Access denied. Only administrators can edit admissions.");
       return;
     }
-    setSelectedAdmission(admission);
+    setSelectedAdmission(admission as unknown as AdmissionWithRelations);
     setEditDialogOpen(true);
   };
 
-  const handleDeleteAdmission = (admission: AdmissionWithRelations) => {
+  const handleDeleteAdmission = (admission: AdmissionListItem) => {
     if (!isAdmin) {
       toast.error("Access denied. Only administrators can delete admissions.");
       return;

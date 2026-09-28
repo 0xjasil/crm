@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 interface ErrorMessageProps {
-  message?: string | string[];
+  message?: string | string[] | null;
   className?: string;
 }
 

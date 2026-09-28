@@ -7,6 +7,7 @@ import { CACHE_KEYS, CACHE_TTL } from "@/lib/cache/cache-keys";
 import {
   invalidateMasterDataCache,
   invalidateUserPermissionCache,
+  invalidateDashboardCache,
 } from "@/lib/cache/cache-invalidation";
 import {
   CreateRoleInput,

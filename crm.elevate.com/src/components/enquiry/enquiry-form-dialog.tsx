@@ -140,13 +140,13 @@ export function EnquiryFormDialog({
 
   // Actions
   const {
-    execute: createEnquiryAction,
+    executeAsync: createEnquiryAction,
     result: createResult,
     isExecuting: isCreating,
   } = useAction(createEnquiry);
 
   const {
-    execute: updateEnquiryAction,
+    executeAsync: updateEnquiryAction,
     result: updateResult,
     isExecuting: isUpdating,
   } = useAction(updateEnquiry);
