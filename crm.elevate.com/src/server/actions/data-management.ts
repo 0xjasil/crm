@@ -639,7 +639,7 @@ export async function toggleEnquirySourceStatus(
 
 export async function getAllRequiredServices(): Promise<ActionResponse> {
   try {
-    const requiredServices = await prisma.requiredService.findMany({
+    const requiredServices = await prisma.service.findMany({
       orderBy: { createdAt: "desc" },
     });
 
@@ -763,73 +763,22 @@ export async function deleteService(input: DeleteInput){
   }
 }
 
-// Required Service Actions
+// Required Service Actions (delegated to Service model)
 
 export async function createRequiredService(
   input: CreateRequiredServiceInput
 ): Promise<ActionResponse> {
-  try {
-    const requiredService = await prisma.requiredService.create({
-      data: input,
-    });
-    revalidatePath("/admin/data-management");
-
-    return {
-      success: true,
-      message: "Required service created successfully",
-      data: requiredService,
-    };
-  } catch (error) {
-    console.error("Error creating required service:", error);
-    return {
-      success: false,
-      message: "Failed to create required service",
-    };
-  }
+  return createService(input);
 }
 
 export async function updateRequiredService(
   input: UpdateRequiredServiceInput
 ): Promise<ActionResponse> {
-  try {
-    const requiredService = await prisma.requiredService.update({
-      where: { id: input.id },
-      data: {
-        name: input.name,
-      },
-    });
-    revalidatePath("/admin/data-management");
-    return {
-      success: true,
-      message: "Required service updated successfully",
-      data: requiredService,
-    };
-  } catch (error) {
-    console.error("Error updating required service:", error);
-    return {
-      success: false,
-      message: "Failed to update required service",
-    };
-  }
+  return updateService(input);
 }
 
 export async function deleteRequiredService(
   input: DeleteInput
 ): Promise<ActionResponse> {  
-  try {
-    await prisma.requiredService.delete({
-      where: { id: input.id },
-    });
-    revalidatePath("/admin/data-management");
-    return {
-      success: true,
-      message: "Required service deleted successfully",
-    };
-  } catch (error) {
-    console.error("Error deleting required service:", error);
-    return {
-      success: false,
-      message: "Failed to delete required service",
-    };
-  }
+  return deleteService(input);
 }
