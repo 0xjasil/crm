@@ -1,6 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "pnpm run build",
+  "buildCommand": "npx prisma generate && npx tsc",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "{dist/**,src/services/pdf/templates/**,node_modules/@pdfme/**}"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

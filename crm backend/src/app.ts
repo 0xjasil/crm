@@ -15,6 +15,8 @@ import { followUpRoutes } from './modules/follow-ups/follow-up.routes.js';
 import { callLogRoutes } from './modules/call-logs/call-log.routes.js';
 import { admissionRoutes } from './modules/admissions/admission.routes.js';
 import { invoiceRoutes } from './modules/invoices/invoice.routes.js';
+import { publicInvoiceRoutes } from './modules/invoices/public-invoice.routes.js';
+import { customerRoutes } from './modules/customers/customer.routes.js';
 import { receiptRoutes } from './modules/receipts/receipt.routes.js';
 import { expenseRoutes } from './modules/expenses/expense.routes.js';
 import { serviceRoutes } from './modules/services/service.routes.js';
@@ -24,20 +26,22 @@ import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { reportRoutes } from './modules/reports/report.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
+  const isDev = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
   const app = fastify({
-    logger: {
-      transport:
-        process.env.NODE_ENV === 'development'
-          ? {
-              target: 'pino-pretty',
-              options: {
-                translateTime: 'HH:MM:ss Z',
-                ignore: 'pid,hostname',
-              },
-            }
-          : undefined,
-      level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
-    },
+    logger: isDev
+      ? {
+          transport: {
+            target: 'pino-pretty',
+            options: {
+              translateTime: 'HH:MM:ss Z',
+              ignore: 'pid,hostname',
+            },
+          },
+          level: 'debug',
+        }
+      : {
+          level: 'info',
+        },
   });
 
   // Core Plugins
@@ -67,6 +71,8 @@ export async function buildApp(): Promise<FastifyInstance> {
       await v1.register(callLogRoutes, { prefix: '/call-logs' });
       await v1.register(admissionRoutes, { prefix: '/admissions' });
       await v1.register(invoiceRoutes, { prefix: '/invoices' });
+      await v1.register(publicInvoiceRoutes, { prefix: '/public/invoices' });
+      await v1.register(customerRoutes, { prefix: '/customers' });
       await v1.register(receiptRoutes, { prefix: '/receipts' });
       await v1.register(expenseRoutes, { prefix: '/expenses' });
       await v1.register(serviceRoutes, { prefix: '/services' });
@@ -79,4 +85,35 @@ export async function buildApp(): Promise<FastifyInstance> {
   );
 
   return app;
+}
+
+let appInstance: FastifyInstance | null = null;
+
+export async function getApp(): Promise<FastifyInstance> {
+  if (!appInstance) {
+    appInstance = await buildApp();
+    await appInstance.ready();
+  }
+  return appInstance;
+}
+
+export default async function handler(req: any, res: any) {
+  try {
+    const app = await getApp();
+    await app.ready();
+    app.server.emit('request', req, res);
+  } catch (error) {
+    console.error('Fastify Serverless Handler Error:', error);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(
+        JSON.stringify({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
 }
