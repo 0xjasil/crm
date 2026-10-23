@@ -1,4 +1,4 @@
-import prisma from '../../../../../willowy/crm/crm.elevate.com/src/lib/prisma';
+import prisma from '../src/lib/prisma';
 
 async function main() {
   const existing = await prisma.user.findUnique({
