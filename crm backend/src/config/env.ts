@@ -5,11 +5,13 @@ export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   host: process.env.HOST || '0.0.0.0',
   nodeEnv: process.env.NODE_ENV || 'development',
-  databaseUrl: process.env.DATABASE_URL || '',
+  databaseUrl: process.env.POSTGRES_PRISMA_DATABASE_URL
+    || process.env.DATABASE_URL
+    || '',
   jwtSecret: process.env.JWT_SECRET || 'crm_elevate_super_secure_jwt_secret_key_2026',
   cookieSecret: process.env.COOKIE_SECRET || 'crm_elevate_cookie_secret_key_2026_very_long',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-  backendUrl: process.env.BACKEND_URL || 'https://crm-backend-7aum.vercel.app',
+  backendUrl: process.env.BACKEND_URL || 'https://crm-backend-ten-pi.vercel.app',
   resendApiKey: process.env.RESEND_API_KEY || '',
   emailFrom: process.env.EMAIL_FROM || '',
 };

@@ -647,17 +647,15 @@ export default function JobLeadDetailPage({ params }: { params: Promise<{ jobOrd
                                     <Button
                                         className="relative z-10 w-full cursor-pointer"
                                         onClick={() => {
-                                            toast.info('Taking you to the admissions page...');
+                                            toast.info('Taking you to the pre-installation site survey form...');
                                         }}
                                     >
-                                        <UserPlus className="mr-2 h-4 w-4" />
-                                        Take Admission
+                                        Site Survey Form
                                     </Button>
                                 </Link>
                             ) : (
                                 <Button className="relative z-10 w-full cursor-not-allowed" disabled>
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    Already Enrolled
+                                    Survey Completed
                                 </Button>
                             )}
 

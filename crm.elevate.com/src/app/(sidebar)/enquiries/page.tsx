@@ -421,9 +421,9 @@ export default function EnquiriesPage() {
                           />
                         </TableHead>
                       )}
-                      <TableHead>Candidate</TableHead>
+                      <TableHead>Customer</TableHead>
                       <TableHead>Contact</TableHead>
-                      <TableHead>Preferred Course</TableHead>
+                      <TableHead>Required Capacity</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Assigned To</TableHead>
                       <TableHead>Assigned By</TableHead>

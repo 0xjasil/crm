@@ -36,6 +36,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { getServiceBillHistory } from "@/server/actions/service-actions";
 import { Clock } from "lucide-react";
 import Link from "next/link";
+import { InstallationTimelineCard } from "@/components/installation-timeline-card";
 
 export default async function AdmissionDetailPage({
   params,
@@ -67,20 +68,50 @@ export default async function AdmissionDetailPage({
     ? await getServiceBillHistory(serviceBill.id)
     : { success: false, data: [] };
 
+  // Parse documents and residence type from additionalNotes
+  let parsedDocuments: {
+    residenceType?: "independent" | "flat" | "commercial";
+    documents?: Record<string, string>;
+    notes?: string;
+  } | null = null;
+
+  if (admission.additionalNotes) {
+    try {
+      const parsed = JSON.parse(admission.additionalNotes);
+      if (parsed && typeof parsed === "object") {
+        parsedDocuments = parsed;
+      }
+    } catch {
+      // Legacy plain text
+    }
+  }
+
+  const DOC_METADATA_MAP: Record<string, { label: string; isFlatOnly?: boolean }> = {
+    aadhaar: { label: "Aadhaar Card" },
+    panCard: { label: "PAN Card" },
+    bankPassbook: { label: "Bank Passbook / Cheque" },
+    ksebBill: { label: "KSEB Electricity Bill" },
+    landTax: { label: "Land Tax Receipt" },
+    buildingTax: { label: "Building Tax Receipt" },
+    vendorAgreement: { label: "Vendor Agreement" },
+    flatNoc: { label: "Flat Association NOC", isFlatOnly: true },
+    roofRights: { label: "Terrace / Roof Rights", isFlatOnly: true },
+  };
+
   if (!admission) {
     return (
       <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div className="flex items-center justify-center py-24">
           <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Admission Not Found</h3>
+            <h3 className="text-lg font-semibold mb-2">Installation Not Found</h3>
             <p className="text-muted-foreground mb-4">
-              The admission you&apos;re looking for doesn&apos;t exist or has
+              The solar installation you&apos;re looking for doesn&apos;t exist or has
               been removed.
             </p>
             <Link href="/admissions">
               <Button variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Admissions
+                Back to Installations
               </Button>
             </Link>
           </div>
@@ -100,11 +131,11 @@ export default async function AdmissionDetailPage({
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Admission Details: {admission.admissionNumber}
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              Pre-Installation Survey: {admission.admissionNumber}
             </h1>
-            <p className="text-muted-foreground">
-              View and manage admission information
+            <p className="text-muted-foreground text-sm">
+              Customer site feasibility, KYC documentation, and installation progress timeline
             </p>
           </div>
         </div>
@@ -114,24 +145,34 @@ export default async function AdmissionDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Main Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Personal Information */}
+          {/* Installation Progress Timeline & Creation Time */}
+          <InstallationTimelineCard
+            admissionId={admission.id}
+            createdAt={admission.createdAt}
+            createdByUserName={admission.createdBy?.name}
+            currentStatus={admission.status}
+            additionalNotes={admission.additionalNotes}
+            isAdmin={true}
+          />
+
+          {/* Customer Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Personal Information
+                <User className="h-5 w-5 text-primary" />
+                Customer Information
               </CardTitle>
               <CardDescription>
-                Candidate&apos;s personal and contact details
+                Customer&apos;s contact details and installation site address
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Full Name
+                    Customer Name
                   </label>
-                  <p className="font-medium">{admission.candidateName}</p>
+                  <p className="font-semibold text-foreground text-base">{admission.candidateName}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
@@ -139,7 +180,7 @@ export default async function AdmissionDetailPage({
                   </label>
                   <p className="font-medium">
                     {admission.gender &&
-                      AdmissionGenderLabels[admission.gender]}
+                      AdmissionGenderLabels[admission.gender] || "Not specified"}
                   </p>
                 </div>
                 <div>
@@ -148,7 +189,7 @@ export default async function AdmissionDetailPage({
                   </label>
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-medium">{admission.mobileNumber}</p>
+                    <p className="font-medium font-mono">{admission.mobileNumber}</p>
                   </div>
                 </div>
                 {admission.email && (
@@ -169,8 +210,9 @@ export default async function AdmissionDetailPage({
                   <div className="flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                     <p className="font-medium">
-                      {admission.dateOfBirth &&
-                        formatDate(admission.dateOfBirth)}
+                      {admission.dateOfBirth
+                        ? formatDate(admission.dateOfBirth)
+                        : "Not specified"}
                     </p>
                   </div>
                 </div>
@@ -178,7 +220,7 @@ export default async function AdmissionDetailPage({
               <Separator />
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
-                  Address
+                  Installation Site Address
                 </label>
                 <div className="flex items-start gap-2 mt-1">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -196,86 +238,153 @@ export default async function AdmissionDetailPage({
             </CardContent>
           </Card>
 
-          {/* Education Information */}
+          {/* KYC & Project Documents */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5" />
-                Education Details
-              </CardTitle>
-              <CardDescription>
-                Academic background and qualifications
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  KYC & Site Documents
+                </CardTitle>
+                <CardDescription>
+                  Customer identity proofs, tax receipts, and agreement records
+                </CardDescription>
+              </div>
+              {parsedDocuments?.residenceType && (
+                <Badge variant="outline" className="capitalize text-xs">
+                  Residence: {parsedDocuments.residenceType}
+                </Badge>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {parsedDocuments && parsedDocuments.documents ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.entries(DOC_METADATA_MAP)
+                    .filter(([key, meta]) => {
+                      if (meta.isFlatOnly && parsedDocuments?.residenceType !== "flat") {
+                        return false;
+                      }
+                      return true;
+                    })
+                    .map(([key, meta]) => {
+                      const url = parsedDocuments?.documents?.[key];
+                      const isLinked = Boolean(url);
+
+                      return (
+                        <div
+                          key={key}
+                          className={`p-3 rounded-lg border flex items-center justify-between ${
+                            isLinked
+                              ? "bg-emerald-500/5 border-emerald-500/20"
+                              : "bg-muted/30 border-border/60"
+                          }`}
+                        >
+                          <div>
+                            <p className="font-medium text-xs text-foreground">{meta.label}</p>
+                            <span className="text-[11px] text-muted-foreground">
+                              {isLinked ? "Document uploaded" : "Not uploaded"}
+                            </span>
+                          </div>
+                          {isLinked ? (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs gap-1">
+                                <ExternalLink className="h-3 w-3" />
+                                View
+                              </Button>
+                            </a>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : admission.additionalNotes ? (
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Last Qualification
+                    Site Notes
                   </label>
-                  <p className="font-medium">{admission.lastQualification}</p>
+                  <p className="font-medium mt-1">{admission.additionalNotes}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Year of Passing
-                  </label>
-                  <p className="font-medium">{admission.yearOfPassing}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Percentage/CGPA
-                  </label>
-                  <p className="font-medium">{admission.percentageCGPA}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Institute Name
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Building className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-medium">{admission.instituteName}</p>
-                  </div>
-                </div>
-              </div>
-              {admission.additionalNotes && (
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No documents have been uploaded for this installation yet.
+                </p>
+              )}
+
+              {parsedDocuments?.notes && (
                 <>
                   <Separator />
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">
-                      Additional Notes
+                      Site / Rooftop Notes
                     </label>
-                    <p className="font-medium mt-1">
-                      {admission.additionalNotes}
-                    </p>
+                    <p className="font-medium mt-1 text-sm">{parsedDocuments.notes}</p>
                   </div>
                 </>
               )}
             </CardContent>
           </Card>
 
-          {/* Course Information */}
+          {/* Legacy Education Details if present */}
+          {admission.lastQualification && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5 text-muted-foreground" />
+                  Additional Profile Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Qualification
+                    </label>
+                    <p className="font-medium">{admission.lastQualification}</p>
+                  </div>
+                  {admission.instituteName && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Institute Name
+                      </label>
+                      <p className="font-medium">{admission.instituteName}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Required Capacity Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5" />
-                Course Information
+                <Receipt className="h-5 w-5 text-amber-500" />
+                Required Solar Capacity & Specifications
               </CardTitle>
               <CardDescription>
-                Enrolled course details and information
+                Solar system capacity, inverter specifications, and installation parameters
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Course Name
+                    System Capacity
                   </label>
-                  <p className="font-medium text-lg">{admission.course.name}</p>
+                  <p className="font-semibold text-lg text-foreground">{admission.course.name}</p>
                 </div>
                 {admission.course.duration && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">
-                      Duration
+                      Warranty / Timeline
                     </label>
                     <p className="font-medium">{admission.course.duration}</p>
                   </div>
@@ -284,9 +393,9 @@ export default async function AdmissionDetailPage({
               {admission.course.description && (
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Course Description
+                    System Specifications
                   </label>
-                  <p className="font-medium mt-1">
+                  <p className="font-medium mt-1 text-sm">
                     {admission.course.description}
                   </p>
                 </div>
@@ -556,20 +665,20 @@ export default async function AdmissionDetailPage({
             </Card>
           )}
 
-          {/* Admission Information */}
+          {/* Survey & Project Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Admission Information
+                Pre-Installation Record
               </CardTitle>
-              <CardDescription>Admission record details</CardDescription>
+              <CardDescription>Survey audit & creation details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Admission Number
+                    Survey / Project ID
                   </label>
                   <p className="font-medium font-mono text-sm">
                     {admission.admissionNumber}

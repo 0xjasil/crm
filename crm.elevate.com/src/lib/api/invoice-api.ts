@@ -58,15 +58,13 @@ async function invoiceApiRequest<T>(path: string, init: RequestInit = {}): Promi
   const token = localStorage.getItem('token');
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');
 
-  const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${token}`);
-  if (init.body !== undefined && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
-    headers,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...init.headers,
+    },
   });
   const payload = await response.json() as ApiEnvelope<T>;
   if (!response.ok || !payload.success || payload.data === undefined) {

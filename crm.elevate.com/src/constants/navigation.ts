@@ -10,7 +10,7 @@ import {
   IconUsers,
   IconFileDollar,
   IconBriefcase,
-  IconSchool,
+  IconSun,
   IconChartBar
 } from '@tabler/icons-react';
 import type { SidebarData } from '@/types/navigation';
@@ -61,9 +61,9 @@ export const SIDEBAR_DATA: SidebarData = {
       icon: IconPhoneCall,
     },
     {
-      title: 'Admissions',
+      title: 'Site Surveys & Projects',
       url: '/admissions',
-      icon: IconSchool,
+      icon: IconSun,
     },
     {
       title: 'Service Billing',

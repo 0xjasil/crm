@@ -57,7 +57,7 @@ import {
   Edit2,
   ArrowUpCircle,
   FileText,
-
+  Zap,
 } from 'lucide-react';
 import { getEnquiry } from '@/server/actions/enquiry';
 import { createFollowUp } from '@/server/actions/follow-up';
@@ -582,21 +582,19 @@ export default function EnquiryDetailPage() {
                     onClick={() => {
                       if (enquiry.status === EnquiryStatus.ENROLLED) {
                         toast.info(
-                          'This enquiry has already been enrolled. Check the admissions section for details.'
+                          'A site survey has already been completed for this enquiry. View details in Surveys & Projects.'
                         );
                         return;
                       }
-                      toast.info('Taking you to the admissions page to complete the enrollment...');
+                      toast.info('Taking you to the pre-installation site survey form...');
                     }}
                   >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Take Admission
+                    Site Survey Form
                   </Button>
                 </Link>
               ) : (
                 <Button className="relative z-10 w-full cursor-not-allowed" disabled>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Already Enrolled
+                  Survey Completed
                 </Button>
               )}
 
@@ -1087,7 +1085,7 @@ export default function EnquiryDetailPage() {
                           Source
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {enquiry.enquirySource?.name}
+                          {enquiry.enquirySource?.name || (enquiry as any)?.source || 'Direct'}
                         </p>
                       </div>
                     </div>
@@ -1113,11 +1111,11 @@ export default function EnquiryDetailPage() {
                     <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                       <div className="flex items-center gap-3">
                         <div className="rounded-full bg-green-100 p-1 dark:bg-green-900">
-                          <GraduationCap className="h-3 w-3 text-green-600 dark:text-green-400" />
+                          <Zap className="h-3 w-3 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            Preferred Course
+                            Required Capacity
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             {enquiry.preferredCourse.name}
@@ -1126,6 +1124,29 @@ export default function EnquiryDetailPage() {
                       </div>
                     </div>
                   )}
+
+                  {(() => {
+                    const ksebMatch = enquiry.notes?.match(/\[(?:Avg\.\s*)?KSEB Bill:\s*([^\]]+)\]/i);
+                    const ksebVal = ksebMatch ? ksebMatch[1] : null;
+                    if (!ksebVal) return null;
+                    return (
+                      <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-full bg-amber-100 p-1 dark:bg-amber-900">
+                            <Zap className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              Avg. KSEB Bill
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {ksebVal}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {enquiry.requiredService && (
                     <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">

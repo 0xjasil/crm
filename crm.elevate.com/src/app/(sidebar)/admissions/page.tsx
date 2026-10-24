@@ -59,6 +59,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { PageContainer, PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Badge } from "@/components/ui/badge";
 
 const AdmissionFormDialog = dynamic(
   () => import("@/components/admission-form-dialog").then((mod) => mod.AdmissionFormDialog),
@@ -341,8 +342,8 @@ export default function AdmissionsPage() {
     <PageContainer>
       {/* Header */}
       <PageHeader
-        title="Admissions"
-        description="Manage enrolled students, academic course assignments, and admission profiles."
+        title="Pre-Installation Surveys & Projects"
+        description="Manage customer rooftop site surveys, KYC documentation, required solar capacities, and project timeline to installation."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -368,7 +369,7 @@ export default function AdmissionsPage() {
         <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-primary">
           <UserCheck className="h-4 w-4 shrink-0" />
           <span>
-            Converting candidate enquiry: <strong>{enquiryData.candidateName}</strong> ({enquiryData.phone}) into an admission profile.
+            Converting customer enquiry: <strong>{enquiryData.candidateName}</strong> ({enquiryData.phone}) into a pre-installation site survey.
           </span>
         </div>
       )}
@@ -378,7 +379,7 @@ export default function AdmissionsPage() {
         <div className="relative w-full sm:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by candidate name, mobile number, or admission no..."
+            placeholder="Search by customer name, contact number, or survey ID..."
             className="pl-9 h-9 text-xs bg-background"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
@@ -394,10 +395,10 @@ export default function AdmissionsPage() {
             }}
           >
             <SelectTrigger className="w-full sm:w-[170px] h-9 text-xs">
-              <SelectValue placeholder="All Courses" />
+              <SelectValue placeholder="All Capacities" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Courses</SelectItem>
+              <SelectItem value="ALL">All Capacities</SelectItem>
               {courses.map((course) => (
                 <SelectItem key={course.id} value={course.id}>
                   {course.name}
@@ -437,24 +438,24 @@ export default function AdmissionsPage() {
         </div>
       </div>
 
-      {/* Admissions Table */}
+      {/* Pre-Installation Records Table */}
       <Card className="border-border/80 shadow-sm overflow-hidden">
         <CardHeader className="py-3 px-4 border-b border-border/60 bg-muted/20 flex flex-row items-center justify-between">
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Admission Records {pagination?.total ? `(${pagination.total})` : ""}
+            Pre-Installation Records {pagination?.total ? `(${pagination.total})` : ""}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading && admissions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />
-              <p className="text-xs font-medium text-muted-foreground">Loading admissions...</p>
+              <p className="text-xs font-medium text-muted-foreground">Loading records...</p>
             </div>
           ) : admissions.length === 0 ? (
             <EmptyState
-              icon={GraduationCap}
-              title="No admissions found"
-              description="Create a new student admission or adjust your filter query."
+              icon={BookOpen}
+              title="No pre-installation surveys found"
+              description="Record a new pre-installation site survey or adjust your filter query."
               action={
                 <AdmissionFormDialog
                   courses={courses}
@@ -473,96 +474,127 @@ export default function AdmissionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[140px]">Admission No.</TableHead>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead>Mobile</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead className="w-[120px]">Status</TableHead>
-                    <TableHead className="w-[130px]">Enrolled Date</TableHead>
+                    <TableHead className="w-[140px]">Survey ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Required Capacity</TableHead>
+                    <TableHead className="w-[150px]">Timeline Stage</TableHead>
+                    <TableHead className="w-[130px]">Survey Date</TableHead>
                     <TableHead className="w-[60px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {admissions.map((admission) => (
-                    <TableRow
-                      key={admission.id}
-                      className="hover:bg-muted/40 transition-colors cursor-pointer"
-                      onClick={() => handleViewAdmission(admission.id)}
-                    >
-                      <TableCell className="font-mono text-xs font-semibold text-primary">
-                        {admission.admissionNumber}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-xs text-foreground">
-                            {admission.candidateName}
-                          </span>
-                          {admission.email && (
-                            <span className="text-[11px] text-muted-foreground">
-                              {admission.email}
+                  {admissions.map((admission) => {
+                    let stageLabel = "Survey Recorded";
+                    let stageBadgeClass = "bg-muted text-muted-foreground";
+
+                    if (admission.status === "COMPLETED") {
+                      stageLabel = "Installed ✓";
+                      stageBadgeClass = "bg-emerald-600 text-white font-semibold";
+                    } else if (admission.additionalNotes) {
+                      try {
+                        const parsed = JSON.parse(admission.additionalNotes);
+                        if (parsed?.timelineStep === "INSTALLED") {
+                          stageLabel = "Installed ✓";
+                          stageBadgeClass = "bg-emerald-600 text-white font-semibold";
+                        } else if (parsed?.timelineStep === "INSTALLATION_IN_PROGRESS") {
+                          stageLabel = "Installing";
+                          stageBadgeClass = "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300";
+                        } else if (parsed?.timelineStep === "MATERIAL_DISPATCHED") {
+                          stageLabel = "Dispatched";
+                          stageBadgeClass = "bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-300";
+                        } else if (parsed?.timelineStep === "DOCUMENTS_VERIFIED") {
+                          stageLabel = "Docs Verified";
+                          stageBadgeClass = "bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-300";
+                        }
+                      } catch {
+                        // ignore
+                      }
+                    }
+
+                    return (
+                      <TableRow
+                        key={admission.id}
+                        className="hover:bg-muted/40 transition-colors cursor-pointer"
+                        onClick={() => handleViewAdmission(admission.id)}
+                      >
+                        <TableCell className="font-mono text-xs font-semibold text-primary">
+                          {admission.admissionNumber}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-xs text-foreground">
+                              {admission.candidateName}
                             </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {admission.mobileNumber}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-xs font-medium text-foreground">
-                            {admission.course.name}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={admission.status || "CONFIRMED"} />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDate(admission.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleViewAdmission(admission.id)}
-                              className="text-xs"
-                            >
-                              <Eye className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                              View Profile
-                            </DropdownMenuItem>
-                            {isAdmin && (
+                            {admission.email && (
+                              <span className="text-[11px] text-muted-foreground">
+                                {admission.email}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {admission.mobileNumber}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-xs font-medium text-foreground">
+                              {admission.course.name}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-[10px] px-2 py-0.5 rounded-full ${stageBadgeClass}`}>
+                            {stageLabel}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDate(admission.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => handleEditAdmission(admission)}
+                                onClick={() => handleViewAdmission(admission.id)}
                                 className="text-xs"
                               >
-                                <Edit className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                                Edit Admission
+                                <Eye className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                View Survey
                               </DropdownMenuItem>
-                            )}
-                            {isAdmin && (
-                              <>
-                                <DropdownMenuSeparator />
+                              {isAdmin && (
                                 <DropdownMenuItem
-                                  onClick={() => handleDeleteAdmission(admission)}
-                                  className="text-xs text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/40"
+                                  onClick={() => handleEditAdmission(admission)}
+                                  className="text-xs"
                                 >
-                                  <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                  Delete Admission
+                                  <Edit className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                  Edit Survey
                                 </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                              )}
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteAdmission(admission)}
+                                    className="text-xs text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/40"
+                                  >
+                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                    Delete Record
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
 
