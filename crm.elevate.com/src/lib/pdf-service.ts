@@ -1,6 +1,6 @@
 import { Template } from '@pdfme/common';
 import { generate } from '@pdfme/generator';
-import { text, table, svg, line, multiVariableText } from '@pdfme/schemas';
+import { text, table, svg, image, line, multiVariableText } from '@pdfme/schemas';
 import { InvoiceWithItems } from '@/types/invoice';
 import { Receipt, AdmissionWithReceiptsAndCourse } from '@/types/fee-collection';
 import { InvoiceTemplateMapper as TemplateMapper } from './invoice-template-mapper';
@@ -37,6 +37,7 @@ export class PDFService {
           text,
           table,
           svg,
+          image,
           line,
           multiVariableText,
         },
@@ -142,6 +143,7 @@ static createDownloadableBlob(pdfBuffer: Uint8Array): Blob {
           text,
           table,
           svg,
+          image,
           line,
           multiVariableText,
         },

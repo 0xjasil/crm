@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { IconInnerShadowTop } from '@tabler/icons-react';
+import Image from 'next/image';
 
 import { NavAdmin } from '@/components/nav-admin';
 import { NavMain } from '@/components/nav-main';
@@ -99,8 +99,8 @@ export function AppSidebar({ user, counts, ...props }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" className="hover:bg-transparent">
               <Link href="/dashboard" className="flex items-center gap-2.5">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
-                  <IconInnerShadowTop className="size-5" />
+                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black shadow-xs">
+                  <Image src="/branding/zee-one-logo.png" alt="Zee One logo" width={32} height={32} />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="text-sm font-bold tracking-tight text-foreground">{COMPANY_INFO.name}</span>
