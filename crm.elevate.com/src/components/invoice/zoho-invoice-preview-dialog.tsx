@@ -191,7 +191,7 @@ export function ZohoInvoicePreviewDialog({
             </div>
             <div>
               <DialogTitle className="text-sm font-bold flex items-center gap-2 text-slate-900">
-                Zoho Invoice Preview
+                Zeeone Solar
                 <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                   #{invoice.invoiceNumber}
                 </span>
@@ -315,15 +315,15 @@ export function ZohoInvoicePreviewDialog({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xl font-extrabold tracking-tight text-slate-900">
-                      ZEE ONE CRM
+                    ZeeOne Solar
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium">
                     Solar Rooftop EPC & Green Energy Solutions
                   </p>
-                  {/* <p className="text-xs text-slate-500">
-                    GSTIN: <span className="font-mono font-medium">32AABCU9603R1ZM</span> | State: 32 - Kerala
-                  </p> */}
+                  <p className="text-xs text-slate-500">
+                    Opp. Bharat Petroleum, Thiruvannur, Calicut
+                  </p>
                   <p className="text-xs text-slate-500">
                     Email: zeeonegroup@gmail.com
                   </p>

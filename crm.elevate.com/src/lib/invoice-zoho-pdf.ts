@@ -79,13 +79,14 @@ export function buildZohoInvoicePdf(invoice: InvoiceWithItems): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text("ZEE ONE CRM", margin, y + 6);
+  doc.text("ZeeOne Solar", margin, y + 6);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
   doc.text("Solar Rooftop EPC & Green Energy Solutions", margin, y + 11);
-  doc.text("Email: zeeonegroup@gmail.com", margin, y + 16);
+  doc.text("Opp. Bharat Petroleum, Thiruvannur, Calicut", margin, y + 16);
+  doc.text("Email: zeeonegroup@gmail.com", margin, y + 21);
 
   // Right: TAX INVOICE Title & Meta
   doc.setFont("helvetica", "bold");
