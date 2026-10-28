@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -86,19 +86,25 @@ export function InvoiceFormDialog({
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
 
-  const form = useForm<InvoiceFormData>({
-    resolver: zodResolver(invoiceFormSchema),
-    defaultValues: {
+  const defaultValues = useMemo(() => ({
       billedTo: invoice?.billedTo || '',
       invoiceDate: invoice?.invoiceDate ? new Date(invoice.invoiceDate) : new Date(),
       dueDate: invoice?.dueDate ? new Date(invoice.dueDate) : undefined,
       notes: invoice?.notes || '',
-      taxRate: invoice?.taxRate || 0.18, // Default 18% GST
+      taxRate: invoice?.taxRate ?? 0.18, // Preserve an explicit 0% tax rate.
       taxRounding: invoice?.taxRounding || 'exact',
       serviceCharge: invoice?.serviceCharge || 0,
       otherCharges: invoice?.otherCharges || 0,
-    },
+  }), [invoice]);
+  const form = useForm<InvoiceFormData>({
+    resolver: zodResolver(invoiceFormSchema),
+    defaultValues,
   });
+
+  // Reload saved values when opening the dialog or receiving a refreshed invoice.
+  useEffect(() => {
+    if (open) form.reset(defaultValues);
+  }, [open, defaultValues, form]);
 
   const onSubmit = async (data: InvoiceFormData) => {
     setIsSubmitting(true);
