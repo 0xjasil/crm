@@ -25,7 +25,9 @@ import {
   Receipt,
   ExternalLink,
 } from "lucide-react";
-import { getAdmissionById } from "@/server/actions/admission-actions";
+import { getAdmissionById, getCurrentUser } from "@/server/actions/admission-actions";
+import prisma from "@/lib/prisma";
+import { installationProgressScope } from "@/lib/installation-progress";
 import { getServiceBillByStudentId } from "@/server/actions/service-actions";
 import { toast } from "sonner";
 import {
@@ -46,6 +48,11 @@ export default async function AdmissionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const currentUser = await getCurrentUser();
+  const progressScope = installationProgressScope(currentUser);
+  const canEditProgress = progressScope !== null && Boolean(
+    await prisma.admission.findFirst({ where: { id, ...progressScope }, select: { id: true } })
+  );
 
   const result = await getAdmissionById({ id: id }).catch((error) => {
     console.error("Error fetching admission:", error);
@@ -151,7 +158,7 @@ export default async function AdmissionDetailPage({
             createdByUserName={admission.createdBy?.name}
             currentStatus={admission.status}
             additionalNotes={admission.additionalNotes}
-            isAdmin={true}
+            canEditProgress={canEditProgress}
           />
 
           {/* Customer Information */}

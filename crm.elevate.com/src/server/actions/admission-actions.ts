@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { actionClient, adminActionClient } from "@/lib/safe-action";
+import { actionClient, adminActionClient, authActionClient } from "@/lib/safe-action";
+import { installationProgressSchema, saveInstallationProgress } from "@/lib/installation-progress";
 import {
   AdmissionGender,
   AdmissionStatus,
@@ -229,6 +230,19 @@ export const createAdmission = actionClient
       console.error("Error creating admission:", error);
       throw new Error("Failed to create admission");
     }
+  });
+
+// Only progress is writable here; general project editing remains admin-only.
+export const updateInstallationProgress = authActionClient
+  .schema(installationProgressSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    await prisma.$transaction(async (tx) => {
+      await saveInstallationProgress(tx, ctx.user, parsedInput);
+    });
+    await invalidateDashboardCache();
+    revalidatePath('/admissions');
+    revalidatePath(`/admissions/${parsedInput.id}`);
+    return { success: true, message: 'Installation progress updated successfully' };
   });
 
 // Safe action for updating admission (admin only)
