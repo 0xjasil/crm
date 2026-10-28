@@ -2,13 +2,18 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { InvoiceWithItems, InvoiceStatus } from "@/types/invoice";
 
-// Format currency as Indian Rupees (₹)
+// Built-in PDF fonts do not contain the rupee glyph. Use an explicit currency
+// code so jsPDF can measure and align the amounts using the same font it draws.
+const pdfSafeText = (text: string): string => text.replace(/₹/g, 'INR ').replace(/[\u00a0\u202f]/g, ' ');
+
 const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("en-IN", {
+  return pdfSafeText(new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
+    currencyDisplay: "code",
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount || 0);
+  }).format(amount || 0));
 };
 
 // Format dates nicely
@@ -74,14 +79,13 @@ export function buildZohoInvoicePdf(invoice: InvoiceWithItems): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text("ELEVATE SOLAR CRM", margin, y + 6);
+  doc.text("ZEE ONE CRM", margin, y + 6);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
   doc.text("Solar Rooftop EPC & Green Energy Solutions", margin, y + 11);
-  doc.text("GSTIN: 32AABCU9603R1ZM | State: 32 - Kerala", margin, y + 16);
-  doc.text("Email: billing@crm.elevate.com | Web: crm.elevate.com", margin, y + 21);
+  doc.text("Email: zeeonegroup@gmail.com", margin, y + 16);
 
   // Right: TAX INVOICE Title & Meta
   doc.setFont("helvetica", "bold");
@@ -222,7 +226,7 @@ export function buildZohoInvoicePdf(invoice: InvoiceWithItems): jsPDF {
       ]
   ).map((item, index) => [
     String(index + 1),
-    item.itemDescription || "Service Item",
+    pdfSafeText(item.itemDescription || "Service Item"),
     String(item.quantity ?? 1),
     formatCurrency(Number(item.unitPrice || 0)),
     formatCurrency(Number(item.lineTotal ?? (item.quantity * item.unitPrice))),
@@ -252,9 +256,9 @@ export function buildZohoInvoicePdf(invoice: InvoiceWithItems): jsPDF {
     columnStyles: {
       0: { cellWidth: 10, halign: "center" },
       1: { cellWidth: "auto", halign: "left" },
-      2: { cellWidth: 18, halign: "right" },
-      3: { cellWidth: 32, halign: "right" },
-      4: { cellWidth: 36, halign: "right", fontStyle: "bold" },
+      2: { cellWidth: 14, halign: "right" },
+      3: { cellWidth: 36, halign: "right" },
+      4: { cellWidth: 40, halign: "right", fontStyle: "bold" },
     },
     styles: {
       overflow: "linebreak",
@@ -340,16 +344,16 @@ export function buildZohoInvoicePdf(invoice: InvoiceWithItems): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
-  doc.text("Bank Name: HDFC Bank / State Bank of India", margin, y + 10);
-  doc.text("Account Name: Elevate Solar Energy Solutions", margin, y + 15);
-  doc.text("Account Number: 50200084729103 | IFSC: HDFC0001824", margin, y + 20);
-  doc.text("UPI ID: elevatesolar@upi (Mention Invoice # in remarks)", margin, y + 25);
+  doc.text("Bank Name: HDFC Bank", margin, y + 10);
+  doc.text("Account Name: ZEE ONE GROUP", margin, y + 15);
+  doc.text("Account Number: 50200121862191", margin, y + 20);
+  doc.text("IFSC Code: HDFC0004077", margin, y + 25);
 
   if (invoice.notes) {
     doc.setFont("helvetica", "bold");
     doc.text("NOTES:", margin, y + 33);
     doc.setFont("helvetica", "normal");
-    const noteLines = doc.splitTextToSize(invoice.notes, leftInfoWidth);
+    const noteLines = doc.splitTextToSize(pdfSafeText(invoice.notes), leftInfoWidth);
     doc.text(noteLines.slice(0, 3), margin, y + 38);
   }
 
@@ -383,13 +387,13 @@ export function buildZohoInvoicePdf(invoice: InvoiceWithItems): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
-  doc.text(
+  const terms = doc.splitTextToSize(
     "Terms & Conditions: 1. Payment is due as per invoice terms. 2. Solar subsidy and net-metering approvals subject to discom rules. 3. This is a computer-generated tax invoice.",
-    margin,
-    footerY + 5
+    contentWidth
   );
+  doc.text(terms, margin, footerY + 5);
 
-  doc.text("Authorized Signatory: Elevate Solar Energy Solutions", pageWidth - margin, footerY + 5, {
+  doc.text("Authorized Signatory: ZEE ONE GROUP", pageWidth - margin, footerY + 9 + terms.length * 3, {
     align: "right",
   });
 
