@@ -31,7 +31,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { updateAdmission } from "@/server/actions/admission-actions";
+import { updateInstallationProgress } from "@/server/actions/admission-actions";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -102,7 +102,7 @@ interface InstallationTimelineCardProps {
   createdByUserName?: string;
   currentStatus: AdmissionStatus;
   additionalNotes?: string | null;
-  isAdmin?: boolean;
+  canEditProgress?: boolean;
 }
 
 export function InstallationTimelineCard({
@@ -111,7 +111,7 @@ export function InstallationTimelineCard({
   createdByUserName,
   currentStatus,
   additionalNotes,
-  isAdmin = true,
+  canEditProgress = false,
 }: InstallationTimelineCardProps) {
   const router = useRouter();
 
@@ -142,7 +142,7 @@ export function InstallationTimelineCard({
   const activeIndex = currentIndex >= 0 ? currentIndex : 0;
   const isFullyInstalled = currentStage === "INSTALLED";
 
-  const { execute: executeUpdate, isExecuting } = useAction(updateAdmission, {
+  const { execute: executeUpdate, isExecuting } = useAction(updateInstallationProgress, {
     onSuccess: ({ data }) => {
       if (data?.success) {
         setCurrentStage(selectedStage);
@@ -162,28 +162,9 @@ export function InstallationTimelineCard({
   const handleUpdateStage = () => {
     if (selectedStage === currentStage) return;
 
-    // Map stage to database AdmissionStatus
-    let dbStatus: AdmissionStatus = "PENDING";
-    if (selectedStage === "INSTALLED") {
-      dbStatus = "COMPLETED";
-    } else if (
-      selectedStage === "INSTALLATION_IN_PROGRESS" ||
-      selectedStage === "MATERIAL_DISPATCHED"
-    ) {
-      dbStatus = "CONFIRMED";
-    }
-
-    const updatedNotesPayload = JSON.stringify({
-      ...parsedNotesObj,
-      timelineStep: selectedStage,
-      timelineUpdatedAt: new Date().toISOString(),
-      ...(selectedStage === "INSTALLED" ? { installedAt: new Date().toISOString() } : {}),
-    });
-
     executeUpdate({
       id: admissionId,
-      status: dbStatus,
-      additionalNotes: updatedNotesPayload,
+      stage: selectedStage,
     });
   };
 
@@ -219,8 +200,8 @@ export function InstallationTimelineCard({
             </CardDescription>
           </div>
 
-          {/* Quick Stage Update for Admins */}
-          {isAdmin && (
+          {/* Admins and all field operations staff can update progress. */}
+          {canEditProgress && (
             <div className="flex items-center gap-2 mt-2 sm:mt-0">
               <Select
                 value={selectedStage}

@@ -21,11 +21,13 @@ import {
   FileText,
   Eye,
   Printer,
+  Loader2,
 } from "lucide-react";
 import { InvoiceWithItems, InvoiceStatus } from "@/types/invoice";
 import { formatCurrency } from "@/lib/utils";
 import { downloadZohoInvoicePdf, getZohoInvoicePdfBlobUrl } from "@/lib/invoice-zoho-pdf";
 import { toast } from "sonner";
+import { openPdfViewer } from "@/lib/open-pdf-viewer";
 
 interface ZohoInvoicePreviewDialogProps {
   open: boolean;
@@ -41,22 +43,38 @@ export function ZohoInvoicePreviewDialog({
   const [isExporting, setIsExporting] = useState(false);
   const [viewMode, setViewMode] = useState<"sheet" | "pdf">("sheet");
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isPreparingPdf, setIsPreparingPdf] = useState(true);
+  const [isOpeningPdf, setIsOpeningPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(true);
 
   // Generate real PDF blob URL whenever dialog opens
   useEffect(() => {
-    if (open && invoice) {
+    setPdfBlobUrl(null);
+    setPdfError(null);
+    setIsPreviewLoading(true);
+    if (!open || !invoice) {
+      setIsPreparingPdf(false);
+      return;
+    }
+    setIsPreparingPdf(true);
+    let previewUrl: string | undefined;
+    // Allow the preparation state to render before generating the PDF.
+    const timer = window.setTimeout(() => {
       try {
-        const url = getZohoInvoicePdfBlobUrl(invoice);
-        setPdfBlobUrl(url);
-        return () => {
-          if (url) URL.revokeObjectURL(url);
-        };
+        previewUrl = getZohoInvoicePdfBlobUrl(invoice);
+        setPdfBlobUrl(previewUrl);
       } catch (err) {
         console.error("Error creating PDF preview blob:", err);
+        setPdfError('Could not prepare the PDF preview. Try Download PDF.');
+      } finally {
+        setIsPreparingPdf(false);
       }
-    } else {
-      setPdfBlobUrl(null);
-    }
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
   }, [open, invoice]);
 
   if (!invoice) return null;
@@ -87,29 +105,24 @@ export function ZohoInvoicePreviewDialog({
     }
   };
 
-  const handleOpenPdfTab = () => {
+  const handleOpenPdfTab = (forPrint = false) => {
+    if (isOpeningPdf) return;
+    setIsOpeningPdf(true);
     try {
-      const url = pdfBlobUrl || getZohoInvoicePdfBlobUrl(invoice);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err: any) {
+      openPdfViewer(() => getZohoInvoicePdfBlobUrl(invoice));
+      if (forPrint) {
+        toast.info('Use the PDF viewer’s Print button once the invoice loads. If it does not display, use Download PDF.');
+      }
+    } catch (err: unknown) {
       console.error("Failed to open PDF tab:", err);
-      toast.error("Failed to open PDF in new tab.");
+      toast.error(err instanceof Error ? err.message : 'Could not open the PDF. Try Download PDF.');
+    } finally {
+      setIsOpeningPdf(false);
     }
   };
 
   const handlePrint = () => {
-    if (pdfBlobUrl) {
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = pdfBlobUrl;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        iframe.contentWindow?.print();
-        setTimeout(() => document.body.removeChild(iframe), 1000);
-      };
-    } else {
-      window.print();
-    }
+    handleOpenPdfTab(true);
   };
 
   const getStatusBadge = (status: InvoiceStatus) => {
@@ -219,16 +232,18 @@ export function ZohoInvoicePreviewDialog({
               size="sm"
               variant="outline"
               onClick={handlePrint}
+              disabled={isPreparingPdf || isOpeningPdf}
               className="h-8 text-xs gap-1.5 border-slate-200 text-slate-700 bg-white hover:bg-slate-50"
             >
               <Printer className="h-3.5 w-3.5" />
-              Print
+              {isPreparingPdf ? 'Preparing PDF...' : 'Print'}
             </Button>
 
             <Button
               size="sm"
               variant="outline"
-              onClick={handleOpenPdfTab}
+              onClick={() => handleOpenPdfTab()}
+              disabled={isPreparingPdf || isOpeningPdf}
               className="h-8 text-xs gap-1.5 border-slate-200 text-slate-700 bg-white hover:bg-slate-50"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -248,13 +263,32 @@ export function ZohoInvoicePreviewDialog({
         </DialogHeader>
 
         {/* Real PDF View Mode */}
-        {viewMode === "pdf" && pdfBlobUrl ? (
-          <div className="flex-1 w-full h-[76vh] bg-slate-100 p-2">
-            <iframe
-              src={`${pdfBlobUrl}#toolbar=1&navpanes=0`}
-              className="w-full h-full border-0 rounded-md shadow-inner bg-white"
-              title={`Invoice-${invoice.invoiceNumber}`}
-            />
+        {viewMode === "pdf" ? (
+          <div className="relative flex-1 min-h-[60vh] w-full h-[76vh] bg-slate-100 p-2">
+            {pdfError ? (
+              <div role="alert" className="p-6 text-center text-sm text-slate-700">
+                <p>{pdfError}</p>
+                <Button className="mt-3" onClick={handleDownload} disabled={isExporting}>Download PDF</Button>
+              </div>
+            ) : isPreparingPdf || !pdfBlobUrl ? (
+              <div role="status" className="flex items-center justify-center gap-2 p-6 text-sm text-slate-700">
+                <Loader2 className="h-4 w-4 animate-spin" /> Preparing PDF...
+              </div>
+            ) : (
+              <>
+                <p className="mb-2 text-center text-xs text-slate-600">
+                  {isPreviewLoading ? 'Loading PDF viewer. ' : ''}
+                  If the PDF does not display, use New Tab or Download PDF above.
+                </p>
+                <iframe
+                  src={`${pdfBlobUrl}#toolbar=1&navpanes=0`}
+                  className="w-full h-[calc(100%-2rem)] min-h-[55vh] border-0 rounded-md shadow-inner bg-white"
+                  title={`Invoice-${invoice.invoiceNumber}`}
+                  onLoad={() => setIsPreviewLoading(false)}
+                  onError={() => setPdfError('The PDF viewer could not load. Use New Tab or Download PDF.')}
+                />
+              </>
+            )}
           </div>
         ) : (
           /* Live Document Sheet Preview (100% Solid Pure White Paper) */
@@ -281,17 +315,17 @@ export function ZohoInvoicePreviewDialog({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xl font-extrabold tracking-tight text-slate-900">
-                      ELEVATE SOLAR CRM
+                      ZEE ONE CRM
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium">
                     Solar Rooftop EPC & Green Energy Solutions
                   </p>
-                  <p className="text-xs text-slate-500">
+                  {/* <p className="text-xs text-slate-500">
                     GSTIN: <span className="font-mono font-medium">32AABCU9603R1ZM</span> | State: 32 - Kerala
-                  </p>
+                  </p> */}
                   <p className="text-xs text-slate-500">
-                    Email: billing@crm.elevate.com | Web: crm.elevate.com
+                    Email: zeeonegroup@gmail.com
                   </p>
                 </div>
 
@@ -470,23 +504,20 @@ export function ZohoInvoicePreviewDialog({
                     style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}
                   >
                     <p>
-                      <span className="text-slate-400">Bank Name:</span> HDFC Bank / State Bank of India
+                      <span className="text-slate-400">Bank Name:</span> HDFC Bank
                     </p>
                     <p>
-                      <span className="text-slate-400">Account Name:</span> Elevate Solar Energy Solutions
+                      <span className="text-slate-400">Account Name:</span> ZEE ONE GROUP
                     </p>
                     <p>
                       <span className="text-slate-400">Account Number:</span>{" "}
-                      <span className="font-mono font-medium text-slate-900">50200084729103</span>
+                      <span className="font-mono font-medium text-slate-900">50200121862191</span>
                     </p>
                     <p>
                       <span className="text-slate-400">IFSC Code:</span>{" "}
-                      <span className="font-mono font-medium text-slate-900">HDFC0001824</span>
+                      <span className="font-mono font-medium text-slate-900">HDFC0004077</span>
                     </p>
-                    <p>
-                      <span className="text-slate-400">UPI ID:</span>{" "}
-                      <span className="font-mono font-medium text-slate-900">elevatesolar@upi</span>
-                    </p>
+
                   </div>
 
                   {invoice.notes && (
@@ -574,7 +605,7 @@ export function ZohoInvoicePreviewDialog({
                   Terms & Conditions: 1. Payment due upon presentation. 2. Solar subsidy subject to discom rules. 3. Computer generated invoice.
                 </p>
                 <p className="font-semibold text-slate-700 whitespace-nowrap">
-                  Authorized Signatory: Elevate Solar Energy Solutions
+                  Authorized Signatory: ZEE ONE GROUP
                 </p>
               </div>
             </div>
