@@ -16,6 +16,37 @@ type EnquiryListResponse = {
   pagination?: { page: number; limit: number; total: number; totalPages: number };
 };
 
+type EnquiryResponse = {
+  success: boolean;
+  data?: EnquiryListItem;
+  message?: string;
+  error?: { message?: string };
+};
+
+export async function fetchEnquiry(id: string) {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('Your session has expired. Sign in again to continue.');
+
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
+  const response = await fetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  const result: EnquiryResponse = await response.json();
+  if (!response.ok || !result.success || !result.data) {
+    throw new Error(result.error?.message || result.message || 'Failed to fetch enquiry');
+  }
+
+  const enquiry = result.data;
+  const data: Enquiry = {
+    ...enquiry,
+    createdAt: new Date(enquiry.createdAt),
+    updatedAt: new Date(enquiry.updatedAt),
+    lastContactDate: enquiry.lastContactDate ? new Date(enquiry.lastContactDate) : undefined,
+  };
+  return { success: true, data, message: result.message };
+}
+
 export async function fetchEnquiries(filters: EnquiryFilters = {}) {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');

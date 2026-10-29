@@ -13,7 +13,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
-    "test": "tsx --test src/modules/invoices/payment.utils.test.ts src/modules/invoices/invoice-tax.test.ts src/modules/enquiries/enquiry-list.test.ts"
+    "test": "tsx --test src/modules/invoices/payment.utils.test.ts src/modules/invoices/invoice-tax.test.ts src/modules/enquiries/enquiry-list.test.ts src/modules/enquiries/enquiry-detail.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

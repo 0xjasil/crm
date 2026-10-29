@@ -108,21 +108,34 @@ export class EnquiryService {
   async getEnquiryById(id: string) {
     const enquiry = await this.prisma.enquiry.findUnique({
       where: { id },
-      include: {
-        branch: true,
-        preferredCourse: true,
-        service: true,
+      select: {
+        id: true,
+        candidateName: true,
+        phone: true,
+        contact2: true,
+        email: true,
+        address: true,
+        status: true,
+        notes: true,
+        feedback: true,
+        lastContactDate: true,
+        branchId: true,
+        preferredCourseId: true,
+        serviceId: true,
+        source: true,
+        sourceId: true,
+        assignedToUserId: true,
+        createdByUserId: true,
+        assignedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+        branch: { select: { id: true, name: true } },
+        preferredCourse: { select: { id: true, name: true, courseFee: true } },
+        service: { select: { id: true, name: true, price: true } },
+        enquirySource: { select: { id: true, name: true } },
         assignedTo: { select: { id: true, name: true, email: true, role: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
-        assignedBy: { select: { id: true, name: true, email: true } },
-        followUps: { orderBy: { scheduledAt: 'desc' } },
-        callLogs: { orderBy: { callDate: 'desc' } },
-        admissions: {
-          include: {
-            course: true,
-            receipts: true,
-          },
-        },
+        createdBy: { select: { id: true, name: true, email: true, role: true } },
+        assignedBy: { select: { id: true, name: true, email: true, role: true } },
       },
     });
 

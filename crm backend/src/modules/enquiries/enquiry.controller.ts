@@ -9,6 +9,7 @@ import {
   updateEnquirySchema,
 } from './enquiry.schema.js';
 import { EnquiryService } from './enquiry.service.js';
+import { ForbiddenError } from '../../errors/app-error.js';
 
 export class EnquiryController {
   static async listEnquiries(request: FastifyRequest, reply: FastifyReply) {
@@ -22,7 +23,17 @@ export class EnquiryController {
     const { id } = request.params as { id: string };
     const service = new EnquiryService(request.server.prisma);
     const enquiry = await service.getEnquiryById(id);
-    return reply.send(successResponse(enquiry));
+    const role = (request.user.role || '').toLowerCase();
+    const canViewAll = ['admin', 'manager', 'executive', 'branch manager'].includes(role);
+    if (!canViewAll && enquiry.assignedToUserId !== request.user.id) {
+      throw new ForbiddenError('Access denied');
+    }
+
+    return reply.send(successResponse({
+      ...enquiry,
+      enquirySource: enquiry.enquirySource || (enquiry.source ? { id: enquiry.source, name: enquiry.source } : null),
+      requiredService: enquiry.service,
+    }, 'Enquiry fetched successfully'));
   }
 
   static async createEnquiry(request: FastifyRequest, reply: FastifyReply) {

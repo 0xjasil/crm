@@ -50,7 +50,7 @@ import {
   getEnquirySourcesForAdmission,
   deleteAdmission,
 } from "@/server/actions/admission-actions";
-import { getEnquiry } from "@/server/actions/enquiry";
+import { fetchEnquiry } from "@/lib/api/enquiry-api";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { AdmissionWithRelations, AdmissionStatus } from "@/types/admission";
@@ -165,7 +165,7 @@ export default function AdmissionsPage() {
 
       setIsLoadingEnquiry(true);
       try {
-        const result = await getEnquiry(enquiryId);
+        const result = await fetchEnquiry(enquiryId);
         if (result.success) {
           setEnquiryData(result.data as Enquiry);
           setCreateDialogOpen(true);
@@ -177,7 +177,7 @@ export default function AdmissionsPage() {
         }
       } catch (error) {
         console.error("Error fetching enquiry:", error);
-        toast.error("Failed to fetch enquiry data");
+        toast.error(error instanceof Error ? error.message : "Failed to fetch enquiry data");
       } finally {
         setIsLoadingEnquiry(false);
       }

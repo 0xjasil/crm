@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createProposal } from '@/server/actions/proposal/proposal-actions';
-import { fetchEnquiries as fetchEnquiriesRequest } from '@/lib/api/enquiry-api';
+import { fetchEnquiries as fetchEnquiriesRequest, fetchEnquiry } from '@/lib/api/enquiry-api';
 import { getAllBranches, getAllCourses } from '@/server/actions/data-management';
 import { cn } from '@/lib/utils';
 import {
@@ -173,13 +173,10 @@ export default function CreateProposalPage() {
   // Handle URL param ?enquiryId=...
   useEffect(() => {
     if (enquiryIdParam) {
-      import('@/server/actions/enquiry').then(({ getEnquiry }) => {
-        getEnquiry(enquiryIdParam).then((res) => {
-          if (res.success && res.data) {
-            const enquiry = res.data;
-            applyEnquiryData(enquiry);
-          }
-        });
+      fetchEnquiry(enquiryIdParam).then((res) => {
+        applyEnquiryData(res.data);
+      }).catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to fetch enquiry');
       });
     }
   }, [enquiryIdParam]);
