@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  name: 'Elevate CRM',
+  name: 'Zee One CRM',
   description: 'Customer Relationship Management System',
   version: '1.0.0',
   author: 'Your Company',
