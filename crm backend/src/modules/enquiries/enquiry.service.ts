@@ -11,7 +11,7 @@ import {
 export class EnquiryService {
   constructor(private prisma: PrismaClient) {}
 
-  async listEnquiries(filters: EnquiryFilterInput, user: { id: string; role: string | null }) {
+  async listEnquiries(filters: EnquiryFilterInput, user: { id: string; role: string | null; branch: string | null }) {
     const {
       search,
       status,
@@ -29,30 +29,44 @@ export class EnquiryService {
     const skip = (page - 1) * limit;
     const where: Prisma.EnquiryWhereInput = {};
 
-    // Telecaller role scoping
-    if (user.role === 'telecaller') {
-      where.assignedToUserId = user.id;
-    } else if (assignedToUserId) {
-      where.assignedToUserId = assignedToUserId;
+    // Keep access restrictions separate so user filters cannot replace them.
+    const access: Prisma.EnquiryWhereInput = {};
+    const role = (user.role || '').toLowerCase();
+    if (role === 'manager' || role === 'executive' || role === 'branch manager') {
+      if (user.branch) access.branchId = user.branch;
+      else access.id = { in: [] };
+    } else if (role !== 'admin') {
+      access.assignedToUserId = user.id;
     }
+    where.AND = [access];
 
-    if (status) where.status = status as EnquiryStatus;
-    if (branchId) where.branchId = branchId;
+    if (assignedToUserId && assignedToUserId !== 'all') where.assignedToUserId = assignedToUserId;
+    if (filters.isAssigned !== undefined) {
+      where.AND.push({ assignedToUserId: filters.isAssigned === 'true' ? { not: null } : null });
+    }
+    if (status) where.status = { in: status };
+    if (branchId && branchId !== 'all') where.branchId = branchId;
     if (preferredCourseId) where.preferredCourseId = preferredCourseId;
     if (serviceId) where.serviceId = serviceId;
     if (source) where.source = { contains: source, mode: 'insensitive' };
-
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate);
+    if (filters.enquirySourceId && filters.enquirySourceId !== 'all') {
+      where.AND.push({ OR: [{ sourceId: filters.enquirySourceId }, { source: filters.enquirySourceId }] });
     }
 
-    if (search) {
+    const from = filters.dateFrom || startDate;
+    const to = filters.dateTo || endDate;
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to);
+    }
+
+    if (search?.trim()) {
+      const term = search.trim();
       where.OR = [
-        { candidateName: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
+        { candidateName: { contains: term, mode: 'insensitive' } },
+        { phone: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
       ];
     }
 
@@ -61,12 +75,14 @@ export class EnquiryService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { [filters.sortBy]: filters.sortOrder },
         include: {
           branch: { select: { id: true, name: true } },
           preferredCourse: { select: { id: true, name: true } },
           service: { select: { id: true, name: true, price: true } },
-          assignedTo: { select: { id: true, name: true, email: true } },
+          enquirySource: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true, email: true, role: true } },
+          assignedBy: { select: { id: true, name: true, email: true, role: true } },
           createdBy: { select: { id: true, name: true } },
           _count: {
             select: {
@@ -79,7 +95,14 @@ export class EnquiryService {
       this.prisma.enquiry.count({ where }),
     ]);
 
-    return { enquiries, total };
+    return {
+      enquiries: enquiries.map((enquiry) => ({
+        ...enquiry,
+        enquirySource: enquiry.enquirySource || (enquiry.source ? { id: enquiry.source, name: enquiry.source } : null),
+        requiredService: enquiry.service,
+      })),
+      total,
+    };
   }
 
   async getEnquiryById(id: string) {

@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createProposal } from '@/server/actions/proposal/proposal-actions';
-import { getEnquiries } from '@/server/actions/enquiry';
+import { fetchEnquiries as fetchEnquiriesRequest } from '@/lib/api/enquiry-api';
 import { getAllBranches, getAllCourses } from '@/server/actions/data-management';
 import { cn } from '@/lib/utils';
 import {
@@ -157,10 +157,9 @@ export default function CreateProposalPage() {
   // Fetch enquiries for combobox
   const fetchEnquiries = async (search: string = '') => {
     try {
-      const res = await getEnquiries({ page: 1, limit: 10, search });
+      const res = await fetchEnquiriesRequest({ page: 1, limit: 10, search });
       if (res?.success && res?.data) {
-        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.enquiries || [];
-        setEnquiries(list);
+        setEnquiries(res.data);
       }
     } catch (err) {
       console.error('Failed to search enquiries:', err);
