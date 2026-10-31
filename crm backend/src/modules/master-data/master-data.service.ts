@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { NotFoundError } from '../../errors/app-error.js';
-import { BranchInput, CourseInput, NameOnlyInput } from './master-data.schema.js';
+import { BranchInput, CourseInput } from './master-data.schema.js';
 
 export const STATIC_ROLES = [
   { id: 'admin', name: 'admin', description: 'Administrator with full access' },

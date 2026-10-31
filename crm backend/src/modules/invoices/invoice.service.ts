@@ -1,3 +1,4 @@
+import { decimal, roundMoney } from '../../shared/utils/money.js';
 ﻿import { PrismaClient, Prisma, InvoiceStatus } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '../../errors/app-error.js';
 import { PDFService } from '../../services/pdf/pdf.service.js';
@@ -84,10 +85,10 @@ export class InvoiceService {
       }
 
       // Calculate totals
-      let subtotal = 0;
+      let subtotal = decimal(0);
       const itemsWithTotals = input.items.map((item) => {
-        const lineTotal = item.quantity * item.unitPrice;
-        subtotal += lineTotal;
+        const lineTotal = decimal(item.unitPrice).times(item.quantity);
+        subtotal = subtotal.plus(lineTotal);
         return {
           itemDescription: item.itemDescription,
           quantity: item.quantity,
@@ -96,13 +97,16 @@ export class InvoiceService {
         };
       });
 
-      const taxRate = input.taxRate ?? 0.18;
-      const taxAmount = subtotal * taxRate;
-      const discountAmount = Math.min(subtotal, input.discountAmount ?? 0);
-      const withholdingAmount = Math.min(Math.max(0, subtotal - discountAmount), input.withholdingAmount ?? 0);
-      const serviceCharge = input.serviceCharge ?? 0;
-      const otherCharges = input.otherCharges ?? 0;
-      const totalAmount = Math.max(0, subtotal + taxAmount + serviceCharge + otherCharges - discountAmount - withholdingAmount);
+      const taxRate = decimal(input.taxRate ?? 0.18);
+      const taxAmount = roundMoney(subtotal.times(taxRate));
+      const discountAmount = Prisma.Decimal.min(subtotal, input.discountAmount ?? 0);
+      const withholdingAmount = Prisma.Decimal.min(Prisma.Decimal.max(0, subtotal.minus(discountAmount)), input.withholdingAmount ?? 0);
+      const serviceCharge = decimal(input.serviceCharge);
+      const otherCharges = decimal(input.otherCharges);
+      const grossAmount = subtotal.plus(taxAmount);
+      const additionalCharges = serviceCharge.plus(otherCharges);
+      const deductions = discountAmount.plus(withholdingAmount);
+      const totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(deductions)));
 
       const invoice = await tx.invoice.create({
         data: {
@@ -120,7 +124,7 @@ export class InvoiceService {
           serviceCharge,
           otherCharges,
           totalAmount,
-          amountPaid: 0,
+          amountPaid: decimal(0),
           balanceDue: totalAmount,
           status: (input.status as InvoiceStatus) || InvoiceStatus.DRAFT,
           notes: input.notes,
@@ -150,7 +154,7 @@ export class InvoiceService {
       if (input.initialPayment && existing.payments.length > 0) {
         throw new BadRequestError('An initial payment can only be added before any payments have been recorded');
       }
-      let subtotal = existing.subtotal;
+      let subtotal = decimal(existing.subtotal);
       let totalAmount = existing.totalAmount;
       const taxRate = input.taxRate !== undefined ? input.taxRate : existing.taxRate;
       const serviceCharge = input.serviceCharge !== undefined ? input.serviceCharge : existing.serviceCharge;
@@ -160,10 +164,10 @@ export class InvoiceService {
       if (input.items && input.items.length > 0) {
         await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
 
-        subtotal = 0;
+        subtotal = decimal(0);
         const newItems = input.items.map((item) => {
-          const lineTotal = item.quantity * item.unitPrice;
-          subtotal += lineTotal;
+          const lineTotal = decimal(item.unitPrice).times(item.quantity);
+          subtotal = subtotal.plus(lineTotal);
           return {
             invoiceId: id,
             itemDescription: item.itemDescription,
@@ -177,15 +181,18 @@ export class InvoiceService {
 
       }
       // A tax-rate-only edit must recalculate amounts even when items are unchanged.
-      const taxAmount = subtotal * taxRate;
-      const discountAmount = Math.min(subtotal, input.discountAmount ?? existing.discountAmount);
-      const withholdingAmount = Math.min(
-        Math.max(0, subtotal - discountAmount),
+      const taxAmount = roundMoney(subtotal.times(taxRate));
+      const discountAmount = Prisma.Decimal.min(subtotal, input.discountAmount ?? existing.discountAmount);
+      const withholdingAmount = Prisma.Decimal.min(
+        Prisma.Decimal.max(0, subtotal.minus(discountAmount)),
         input.withholdingAmount ?? existing.withholdingAmount
       );
-      totalAmount = Math.max(0, subtotal + taxAmount + serviceCharge + otherCharges - discountAmount - withholdingAmount);
-      if (totalAmount < existing.amountPaid) throw new BadRequestError('Invoice total cannot be reduced below the amount already paid');
-      const balanceDue = Math.round((totalAmount - existing.amountPaid) * 100) / 100;
+      const grossAmount = subtotal.plus(taxAmount);
+      const additionalCharges = decimal(serviceCharge).plus(otherCharges);
+      const deductions = discountAmount.plus(withholdingAmount);
+      totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(deductions)));
+      if (totalAmount.lessThan(existing.amountPaid)) throw new BadRequestError('Invoice total cannot be reduced below the amount already paid');
+      const balanceDue = roundMoney(totalAmount.minus(existing.amountPaid));
 
       await tx.invoice.update({
         where: { id },
@@ -203,8 +210,8 @@ export class InvoiceService {
           otherCharges,
           totalAmount,
           balanceDue,
-          status: existing.amountPaid > 0
-            ? balanceDue === 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID
+          status: decimal(existing.amountPaid).greaterThan(0)
+            ? balanceDue.isZero() ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID
             : input.status as InvoiceStatus | undefined,
           notes: input.notes,
         },
@@ -234,7 +241,7 @@ export class InvoiceService {
       await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "invoice" WHERE "id" = ${invoiceId} FOR UPDATE`);
       const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
       if (!invoice) throw new NotFoundError('Invoice');
-      const lineTotal = input.quantity * input.unitPrice;
+      const lineTotal = decimal(input.unitPrice).times(input.quantity);
       await tx.invoiceItem.create({ data: { invoiceId, ...input, lineTotal } });
       return this.recalculateInvoice(tx, invoiceId, userId, `Item added: ${input.itemDescription}`);
     });
@@ -246,7 +253,7 @@ export class InvoiceService {
       if (!current) throw new NotFoundError('Invoice item');
       await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "invoice" WHERE "id" = ${current.invoiceId} FOR UPDATE`);
       const changed = { ...current, ...input };
-      await tx.invoiceItem.update({ where: { id: itemId }, data: { ...input, lineTotal: changed.quantity * changed.unitPrice } });
+      await tx.invoiceItem.update({ where: { id: itemId }, data: { ...input, lineTotal: decimal(changed.unitPrice).times(changed.quantity) } });
       return this.recalculateInvoice(tx, current.invoiceId, userId, `Item updated: ${changed.itemDescription}`);
     });
   }
@@ -264,12 +271,15 @@ export class InvoiceService {
   private async recalculateInvoice(tx: Prisma.TransactionClient, invoiceId: string, userId: string, message: string) {
     const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
     const items = await tx.invoiceItem.findMany({ where: { invoiceId } });
-    const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
-    const taxAmount = subtotal * invoice.taxRate;
-    const totalAmount = Math.max(0, subtotal + taxAmount + invoice.serviceCharge + invoice.otherCharges - invoice.discountAmount - invoice.withholdingAmount);
-    if (totalAmount < invoice.amountPaid) throw new BadRequestError('Invoice total cannot be reduced below the amount already paid');
-    const balanceDue = Math.round((totalAmount - invoice.amountPaid) * 100) / 100;
-    const status = invoice.amountPaid > 0 ? balanceDue === 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID : invoice.status;
+    const subtotal = items.reduce((sum, item) => sum.plus(item.lineTotal), decimal(0));
+    const taxAmount = roundMoney(subtotal.times(invoice.taxRate));
+    const grossAmount = subtotal.plus(taxAmount);
+    const additionalCharges = decimal(invoice.serviceCharge).plus(invoice.otherCharges);
+    const deductions = decimal(invoice.discountAmount).plus(invoice.withholdingAmount);
+    const totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(deductions)));
+    if (totalAmount.lessThan(invoice.amountPaid)) throw new BadRequestError('Invoice total cannot be reduced below the amount already paid');
+    const balanceDue = roundMoney(totalAmount.minus(invoice.amountPaid));
+    const status = decimal(invoice.amountPaid).greaterThan(0) ? balanceDue.isZero() ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID : invoice.status;
     await tx.invoice.update({ where: { id: invoiceId }, data: { subtotal, taxAmount, totalAmount, balanceDue, status } });
     await tx.invoiceActivity.create({ data: { invoiceId, userId, type: 'invoice_updated', message } });
     return tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { items: true } });
@@ -282,6 +292,6 @@ export class InvoiceService {
 
   async generatePDF(id: string) {
     const invoice = await this.getInvoiceById(id);
-    return PDFService.generateInvoicePDF(invoice as any);
+    return PDFService.generateInvoicePDF(invoice);
   }
 }

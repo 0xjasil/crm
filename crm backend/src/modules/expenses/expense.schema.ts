@@ -1,3 +1,4 @@
+import { moneySchema } from '../../shared/utils/money.schemas.js';
 ﻿import { z } from 'zod';
 
 export const expenseFilterSchema = z.object({
@@ -14,7 +15,7 @@ export const expenseFilterSchema = z.object({
 export const createExpenseSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional().nullable(),
-  amount: z.coerce.number().min(0.01, 'Amount must be greater than 0'),
+  amount: moneySchema.refine((value) => value.greaterThanOrEqualTo(0.01), 'Amount must be greater than 0'),
   category: z.enum([
     'OFFICE_SUPPLIES', 'TRAVEL', 'UTILITIES', 'MARKETING',
     'MEALS', 'EQUIPMENT', 'SOFTWARE', 'OTHER'

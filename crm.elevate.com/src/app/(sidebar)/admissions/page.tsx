@@ -66,7 +66,7 @@ const AdmissionFormDialog = dynamic(
   { ssr: false }
 );
 
-import { EnquirySource } from "@prisma/client";
+import { EnquirySource } from "@/types/api-models";
 import {
   AlertDialog,
   AlertDialogAction,

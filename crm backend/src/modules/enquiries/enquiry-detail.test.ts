@@ -103,11 +103,10 @@ test('legacy source names are preserved', async (t) => {
   assert.deepEqual(response.json().data.enquirySource, { id: 'Referral', name: 'Referral' });
 });
 
-test('internal update, status, assignment and delete operations still use the enquiry lookup', async (t) => {
+test('internal update, status and delete operations still use the enquiry lookup', async (t) => {
   const { app, service } = await fixture();
   t.after(() => app.close());
-  assert.equal((await service.updateEnquiry('enquiry-1', { notes: 'Updated' }, 'admin-1')).id, 'enquiry-1');
+  assert.equal((await service.updateEnquiry('enquiry-1', { notes: 'Updated' }, { id: 'admin-1', role: 'admin' })).id, 'enquiry-1');
   assert.equal((await service.changeStatus('enquiry-1', { status: 'CONTACTED' }, 'admin-1')).id, 'enquiry-1');
-  assert.equal((await service.assignEnquiry('enquiry-1', 'staff-2', 'admin-1')).id, 'enquiry-1');
-  assert.equal((await service.deleteEnquiry('enquiry-1')).id, 'enquiry-1');
+  assert.equal((await service.deleteEnquiry('enquiry-1', { id: 'admin-1', role: 'admin' })).id, 'enquiry-1');
 });

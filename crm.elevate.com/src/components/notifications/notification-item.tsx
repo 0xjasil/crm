@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '@/types/api-models';
 
 export interface NotificationItemProps {
     notification: {

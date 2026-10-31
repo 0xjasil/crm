@@ -71,21 +71,14 @@ export class AuthService {
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        branch: true,
-        image: true,
-        createdAt: true,
-      },
+      include: { userRole: true },
     });
 
     if (!user) {
       throw new UnauthorizedError('User session expired or user no longer exists');
     }
 
-    return user;
+    const { password: _password, ...publicUser } = user;
+    return publicUser;
   }
 }

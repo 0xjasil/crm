@@ -1,165 +1,29 @@
-// src/lib/actions/auth.ts
 'use server';
 
+import type { CreateUserActionResponse, GetAllUsersResponse, GetAllBranchesResponse } from '@/types/api-responses/auth';
+
+import { backendPost } from '@/lib/api/backend-server';
+
 import { actionClient } from '@/lib/safe-action';
+
 import { auth } from '@/lib/auth';
+
 import { returnValidationErrors } from 'next-safe-action';
-import prisma, { withPrismaRetry } from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
+
 import { redirect } from 'next/navigation';
-import { cookies, headers } from 'next/headers';
+
+import { cookies } from 'next/headers';
+
 import { loginSchema, userFormSchema } from '@/schema/user-schema';
+
 import { z } from 'zod';
-import { SOFTWARE_POSITIONS } from '@/constants/permissions';
-import { cacheService } from '@/lib/cache/cache-service';
-import { CACHE_TTL } from '@/lib/cache/cache-keys';
 
-/**
- * Ensures standard CRM software positions are populated in the database.
- */
-async function ensureStandardRolesExist() {
-  try {
-    for (const pos of SOFTWARE_POSITIONS) {
-      const existing = await prisma.role.findFirst({
-        where: {
-          OR: [{ id: `role_${pos.id}` }, { name: pos.id }],
-        },
-      });
-
-      if (!existing) {
-        await prisma.role.create({
-          data: {
-            id: `role_${pos.id}`,
-            name: pos.id,
-            description: pos.description,
-            permissions: pos.defaultPermissions,
-            updatedAt: new Date(),
-          },
-        });
-      }
-    }
-  } catch (err) {
-    console.error('Error syncing standard software positions:', err);
-  }
-}
-
-// Create user action
 export const createUserAction = actionClient
   .inputSchema(userFormSchema)
-  .action(async ({ parsedInput: { name, email, password, role, branch, permissions } }) => {
-    try {
-      const normalizedEmail = email.toLowerCase().trim();
-
-      // Check duplicate early to return clean validation error
-      const existing = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-      });
-      if (existing) {
-        return returnValidationErrors(userFormSchema, {
-          email: {
-            _errors: ['A user with this email address already exists'],
-          },
-        });
-      }
-
-      await ensureStandardRolesExist();
-
-      const defaultPos = SOFTWARE_POSITIONS.find((p) => p.id === role);
-      const effectivePermissions =
-        permissions && permissions.length > 0
-          ? permissions
-          : defaultPos?.defaultPermissions || ['dashboard'];
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Create user, custom role (if customized), and credential account record atomically
-      const createdUser = await prisma.$transaction(async (tx) => {
-        let roleRecord = await tx.role.findFirst({
-          where: {
-            OR: [{ id: `role_${role}` }, { name: role }],
-          },
-        });
-
-        const isCustomPermissions =
-          permissions &&
-          permissions.length > 0 &&
-          JSON.stringify(permissions.sort()) !== JSON.stringify((defaultPos?.defaultPermissions || []).sort());
-
-        const newUser = await tx.user.create({
-          data: {
-            name: name.trim(),
-            email: normalizedEmail,
-            role,
-            branch: branch || null,
-            password: hashedPassword,
-            emailVerified: true,
-          },
-        });
-
-        let targetRoleId = roleRecord?.id;
-
-        if (isCustomPermissions) {
-          const customRole = await tx.role.create({
-            data: {
-              id: `role_${newUser.id}`,
-              name: `${role}_${newUser.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-              description: `Custom permissions for ${newUser.name}`,
-              permissions: effectivePermissions,
-              updatedAt: new Date(),
-            },
-          });
-          targetRoleId = customRole.id;
-        }
-
-        if (targetRoleId) {
-          await tx.user.update({
-            where: { id: newUser.id },
-            data: {
-              roleId: targetRoleId,
-            },
-          });
-        }
-
-        // Create credential account record for Better-Auth compatibility
-        await tx.account.create({
-          data: {
-            id: `acc_${newUser.id}`,
-            userId: newUser.id,
-            accountId: normalizedEmail,
-            providerId: 'credential',
-            password: hashedPassword,
-            updatedAt: new Date(),
-          },
-        });
-
-        return tx.user.findUnique({
-          where: { id: newUser.id },
-          include: { userRole: true },
-        });
-      }, { maxWait: 15000, timeout: 30000 });
-
-      if (!createdUser) {
-        return returnValidationErrors(userFormSchema, {
-          _errors: ['Failed to create user account'],
-        });
-      }
-
-      const { password: _, ...safeUser } = createdUser;
-
-      return {
-        success: true,
-        message: `User account created successfully with ${defaultPos?.title || role} access`,
-        user: safeUser,
-      };
-    } catch (error: any) {
-      console.error('Create user action error:', error);
-      return returnValidationErrors(userFormSchema, {
-        _errors: [error.message || 'An error occurred while creating the user'],
-      });
-    }
+  .action(async ({ parsedInput }) => {
+    return backendPost<CreateUserActionResponse>('/workflows/auth/createUserAction', { input: parsedInput ?? {} });
   });
 
-// Update user branch action
 export const updateUserBranchAction = actionClient
   .inputSchema(
     z.object({
@@ -167,29 +31,10 @@ export const updateUserBranchAction = actionClient
       branchId: z.string(),
     })
   )
-  .action(async ({ parsedInput: { userId, branchId } }) => {
-    try {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { branch: branchId },
-      });
-
-      await cacheService.delete(`user:${userId}`);
-
-      return {
-        success: true,
-        message: 'User branch updated successfully',
-      };
-    } catch (error) {
-      console.error('Update user branch error:', error);
-      return {
-        success: false,
-        message: 'Failed to update user branch',
-      };
-    }
+  .action(async ({ parsedInput }) => {
+    return backendPost<{ success: boolean; message: string; }>('/workflows/auth/updateUserBranchAction', { input: parsedInput ?? {} });
   });
 
-// Update user role and permissions action
 export const updateUserRoleAction = actionClient
   .inputSchema(
     z.object({
@@ -197,41 +42,10 @@ export const updateUserRoleAction = actionClient
       role: z.string(),
     })
   )
-  .action(async ({ parsedInput: { userId, role } }) => {
-    try {
-      await ensureStandardRolesExist();
-
-      const defaultPos = SOFTWARE_POSITIONS.find((p) => p.id === role);
-      const roleRecord = await prisma.role.findFirst({
-        where: {
-          OR: [{ id: `role_${role}` }, { name: role }],
-        },
-      });
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          role,
-          ...(roleRecord ? { roleId: roleRecord.id } : {}),
-        },
-      });
-
-      await cacheService.delete(`user:${userId}`);
-
-      return {
-        success: true,
-        message: `User position updated to ${defaultPos?.title || role.toUpperCase()}`,
-      };
-    } catch (error) {
-      console.error('Update user role error:', error);
-      return {
-        success: false,
-        message: 'Failed to update user position',
-      };
-    }
+  .action(async ({ parsedInput }) => {
+    return backendPost<{ success: boolean; message: string; }>('/workflows/auth/updateUserRoleAction', { input: parsedInput ?? {} });
   });
 
-// Granular permissions configuration action
 export const updateUserPermissionsAction = actionClient
   .inputSchema(
     z.object({
@@ -240,126 +54,20 @@ export const updateUserPermissionsAction = actionClient
       permissions: z.array(z.string()),
     })
   )
-  .action(async ({ parsedInput: { userId, role, permissions } }) => {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { userRole: true },
-      });
-
-      if (!user) {
-        return { success: false, message: 'User not found' };
-      }
-
-      const activeRoleSlug = role || user.role || 'custom';
-
-      // Check if user already has their own dedicated role or standard role
-      let targetRoleId = user.roleId;
-
-      if (user.userRole && user.userRole.id === `role_${userId}`) {
-        // Update user's dedicated role permissions directly
-        await prisma.role.update({
-          where: { id: user.userRole.id },
-          data: {
-            name: `${activeRoleSlug}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-            permissions,
-            updatedAt: new Date(),
-          },
-        });
-      } else {
-        // Create or assign a dedicated role record for this user with exact custom permissions
-        const customRole = await prisma.role.upsert({
-          where: { id: `role_${userId}` },
-          create: {
-            id: `role_${userId}`,
-            name: `${activeRoleSlug}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-            description: `Custom permissions for ${user.name}`,
-            permissions,
-            updatedAt: new Date(),
-          },
-          update: {
-            name: `${activeRoleSlug}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-            permissions,
-            updatedAt: new Date(),
-          },
-        });
-        targetRoleId = customRole.id;
-      }
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          role: activeRoleSlug,
-          roleId: targetRoleId,
-        },
-      });
-
-      // Clear caches
-      await cacheService.delete(`user:${userId}`);
-      if (user.email) {
-        await cacheService.delete(`user:email:${user.email}`);
-      }
-
-      return {
-        success: true,
-        message: `Access permissions for ${user.name} successfully updated (${permissions.length} modules active)`,
-      };
-    } catch (error: any) {
-      console.error('Update user permissions error:', error);
-      return {
-        success: false,
-        message: error.message || 'Failed to update access permissions',
-      };
-    }
+  .action(async ({ parsedInput }) => {
+    return backendPost<{ success: boolean; message: any; }>('/workflows/auth/updateUserPermissionsAction', { input: parsedInput ?? {} });
   });
 
-// Delete user action
 export const deleteUserAction = actionClient
   .inputSchema(
     z.object({
       userId: z.string(),
     })
   )
-  .action(async ({ parsedInput: { userId } }) => {
-    try {
-      const targetUser = await prisma.user.findUnique({
-        where: { id: userId },
-      });
-
-      if (!targetUser) {
-        return { success: false, message: 'User not found' };
-      }
-
-      if (targetUser.role === 'admin' || targetUser.email === 'admin@elevate.com') {
-        return {
-          success: false,
-          message: 'Security policy: The primary administrator account cannot be deleted',
-        };
-      }
-
-      await prisma.user.delete({
-        where: { id: userId },
-      });
-
-      await cacheService.delete(`user:${userId}`);
-      if (targetUser.email) {
-        await cacheService.delete(`user:email:${targetUser.email}`);
-      }
-
-      return {
-        success: true,
-        message: 'User deleted successfully',
-      };
-    } catch (error) {
-      console.error('Delete user error:', error);
-      return {
-        success: false,
-        message: 'Failed to delete user',
-      };
-    }
+  .action(async ({ parsedInput }) => {
+    return backendPost<{ success: boolean; message: string; }>('/workflows/auth/deleteUserAction', { input: parsedInput ?? {} });
   });
 
-// Update profile action
 export const updateProfileAction = actionClient
   .inputSchema(
     z.object({
@@ -367,58 +75,10 @@ export const updateProfileAction = actionClient
       email: z.string().email(),
     })
   )
-  .action(async ({ parsedInput: { name, email } }) => {
-    try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
-
-      if (!session) {
-        return {
-          success: false,
-          message: 'Unauthorized',
-        };
-      }
-
-      // Check if email is already taken by another user
-      if (email !== session.user.email) {
-        const existingUser = await prisma.user.findUnique({
-          where: { email },
-        });
-
-        if (existingUser) {
-          return {
-            success: false,
-            message: 'Email is already in use',
-          };
-        }
-      }
-
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          name,
-          email,
-        },
-      });
-
-      await cacheService.delete(`user:${session.user.id}`);
-      await cacheService.delete(`user:email:${email}`);
-
-      return {
-        success: true,
-        message: 'Profile updated successfully',
-      };
-    } catch (error) {
-      console.error('Update profile error:', error);
-      return {
-        success: false,
-        message: 'Failed to update profile',
-      };
-    }
+  .action(async ({ parsedInput }) => {
+    return backendPost<{ success: boolean; message: string; }>('/workflows/auth/updateProfileAction', { input: parsedInput ?? {} });
   });
 
-// Login action
 export const loginAction = actionClient
   .inputSchema(loginSchema)
   .action(async ({ parsedInput: { email, password } }) => {
@@ -479,7 +139,6 @@ export const loginAction = actionClient
     }
   });
 
-// Logout action
 export const logoutAction = actionClient.action(async () => {
   // Clear all auth-related cookies
   const cookieStore = await cookies();
@@ -495,52 +154,17 @@ export const logoutAction = actionClient.action(async () => {
   redirect('/login');
 });
 
-export const getAllUsers = async () => {
-  try {
-    return await withPrismaRetry(async () => {
-      return await prisma.user.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          userRole: true,
-        },
-      });
-    }, 2, 350);
-  } catch (error: any) {
-    console.warn('[Users] Transient DB notice in getAllUsers:', error?.message || error);
-    return [];
-  }
-};
+export async function getAllUsers(): Promise<GetAllUsersResponse> {
+  return backendPost<GetAllUsersResponse>('/workflows/auth/getAllUsers', {  });
+}
 
-export const getAllRoles = async () => {
-  try {
-    return await cacheService.getOrSet('master:roles', CACHE_TTL.MASTER_DATA, async () => {
-      return await withPrismaRetry(async () => {
-        await ensureStandardRolesExist();
-        return await prisma.role.findMany({
-          orderBy: { name: 'asc' },
-        });
-      }, 2, 350);
-    });
-  } catch (error: any) {
-    console.warn('[Roles] Transient DB notice in getAllRoles:', error?.message || error);
-    return [];
-  }
-};
+export async function getAllRoles(): Promise<{ name: string; id: string; createdAt: Date; updatedAt: Date; description: string | null; permissions: string[]; }[]> {
+  return backendPost<{ name: string; id: string; createdAt: Date; updatedAt: Date; description: string | null; permissions: string[]; }[]>('/workflows/auth/getAllRoles', {  });
+}
 
-export const getAllBranches = async () => {
-  try {
-    return await cacheService.getOrSet('master:branches', CACHE_TTL.MASTER_DATA, async () => {
-      return await withPrismaRetry(async () => {
-        return await prisma.branch.findMany({
-          orderBy: { createdAt: 'desc' },
-        });
-      }, 2, 350);
-    });
-  } catch (error: any) {
-    console.warn('[Branches] Transient DB notice in getAllBranches:', error?.message || error);
-    return [];
-  }
-};
+export async function getAllBranches(): Promise<GetAllBranchesResponse> {
+  return backendPost<GetAllBranchesResponse>('/workflows/auth/getAllBranches', {  });
+}
 
 export const changePasswordAction = actionClient
   .inputSchema(
@@ -549,61 +173,6 @@ export const changePasswordAction = actionClient
       newPassword: z.string().min(6, 'New password must be at least 6 characters'),
     })
   )
-  .action(async ({ parsedInput: { currentPassword, newPassword } }) => {
-    try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
-
-      if (!session?.user) {
-        return {
-          success: false,
-          message: 'Unauthorized. Please sign in.',
-        };
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-      });
-
-      if (!user || !user.password) {
-        return {
-          success: false,
-          message: 'User account not found',
-        };
-      }
-
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) {
-        return {
-          success: false,
-          message: 'Incorrect current password',
-        };
-      }
-
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          password: hashedPassword,
-        },
-      });
-
-      await cacheService.delete(`user:${user.id}`);
-      if (user.email) {
-        await cacheService.delete(`user:email:${user.email}`);
-      }
-
-      return {
-        success: true,
-        message: 'Password changed successfully',
-      };
-    } catch (err: any) {
-      console.error('Change password error:', err);
-      return {
-        success: false,
-        message: err.message || 'Failed to change password',
-      };
-    }
+  .action(async ({ parsedInput }) => {
+    return backendPost<{ success: boolean; message: string }>('/users/change-password', parsedInput);
   });
-

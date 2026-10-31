@@ -1,3 +1,4 @@
+import { decimal } from '../../shared/utils/money.js';
 import { PrismaClient, Prisma, FollowUpStatus, EnquiryStatus } from '@prisma/client';
 
 export class DashboardService {
@@ -95,14 +96,14 @@ export class DashboardService {
         this.prisma.admission.findMany({ select: { balance: true } }),
       ]);
 
-      const totalRevenue = receiptsSum._sum.amountCollected || 0;
-      const totalExpense = expensesSum._sum.amount || 0;
-      const totalPendingBalance = admissions.reduce((sum, a) => sum + (a.balance || 0), 0);
+      const totalRevenue = decimal(receiptsSum._sum.amountCollected);
+      const totalExpense = decimal(expensesSum._sum.amount);
+      const totalPendingBalance = admissions.reduce((sum, a) => decimal(sum).plus((a.balance || 0)), decimal(0));
 
       financialStats = {
         totalRevenue,
         totalExpense,
-        netIncome: totalRevenue - totalExpense,
+        netIncome: decimal(totalRevenue).minus(totalExpense),
         totalPendingBalance,
       };
     }

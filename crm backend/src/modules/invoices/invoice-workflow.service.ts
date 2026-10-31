@@ -1,3 +1,4 @@
+import { decimal } from '../../shared/utils/money.js';
 import { randomBytes } from 'node:crypto';
 import { InvoiceStatus, Prisma, PrismaClient } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '../../errors/app-error.js';
@@ -19,8 +20,8 @@ export async function recordPaymentTx(
     throw new BadRequestError('Payments cannot be recorded for draft or cancelled invoices');
   }
   const amount = roundMoney(input.amount);
-  const balanceDue = roundMoney(invoice.totalAmount - invoice.amountPaid);
-  if (amount <= 0 || amount > balanceDue) {
+  const balanceDue = roundMoney(decimal(invoice.totalAmount).minus(invoice.amountPaid));
+  if (amount.lessThanOrEqualTo(0) || amount.greaterThan(balanceDue)) {
     throw new BadRequestError(`Payment must be greater than zero and no more than the balance due (${balanceDue.toFixed(2)})`);
   }
   const paymentNumber = await issuePaymentNumber(tx, input.paymentDate, options.manualPaymentNumber ?? input.paymentNumber);
@@ -38,8 +39,8 @@ export async function recordPaymentTx(
       createdByUserId: userId,
     },
   });
-  const amountPaid = roundMoney(invoice.amountPaid + amount);
-  const nextBalance = roundMoney(Math.max(0, invoice.totalAmount - amountPaid));
+  const amountPaid = roundMoney(decimal(invoice.amountPaid).plus(amount));
+  const nextBalance = roundMoney(Prisma.Decimal.max(0, decimal(invoice.totalAmount).minus(amountPaid)));
   await tx.invoice.update({
     where: { id: invoiceId },
     data: { amountPaid, balanceDue: nextBalance, status: calculateInvoicePaymentStatus(invoice.totalAmount, amountPaid) ?? invoice.status },
@@ -106,9 +107,9 @@ export class InvoiceWorkflowService {
       await tx.payment.delete({ where: { id: paymentId } });
       const aggregate = await tx.payment.aggregate({ where: { invoiceId }, _sum: { amount: true } });
       const amountPaid = roundMoney(aggregate._sum.amount ?? 0);
-      const balanceDue = roundMoney(Math.max(0, invoice.totalAmount - amountPaid));
-      const status = amountPaid > 0
-        ? balanceDue === 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID
+      const balanceDue = roundMoney(Prisma.Decimal.max(0, decimal(invoice.totalAmount).minus(amountPaid)));
+      const status = amountPaid.greaterThan(0)
+        ? balanceDue.isZero() ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID
         : invoice.status === InvoiceStatus.CANCELLED ? invoice.status
           : invoice.dueDate && invoice.dueDate < new Date() ? InvoiceStatus.OVERDUE : InvoiceStatus.SENT;
       await tx.invoice.update({ where: { id: invoiceId }, data: { amountPaid, balanceDue, status } });

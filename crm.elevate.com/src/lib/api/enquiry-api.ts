@@ -1,6 +1,6 @@
 'use client';
 
-import type { Enquiry, EnquiryFilters } from '@/types/enquiry';
+import type { CreateEnquiryInput, UpdateEnquiryInput, Enquiry, EnquiryFilters } from '@/types/enquiry';
 
 type EnquiryListItem = Omit<Enquiry, 'createdAt' | 'updatedAt' | 'lastContactDate'> & {
   createdAt: string;
@@ -22,6 +22,71 @@ type EnquiryResponse = {
   message?: string;
   error?: { message?: string };
 };
+
+type EnquiryMutationResponse = {
+  success: boolean;
+  data?: { id: string } | null;
+  message?: string;
+  error?: { message?: string };
+};
+
+export async function createEnquiry(input: CreateEnquiryInput) {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('Your session has expired. Sign in again to continue.');
+
+  const { enquirySourceId, requiredServiceId, ...fields } = input;
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
+  const response = await fetch(`${apiUrl}/enquiries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ ...fields, sourceId: enquirySourceId || undefined, serviceId: requiredServiceId || undefined }),
+  });
+  const result: EnquiryMutationResponse = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error?.message || result.message || 'Failed to create enquiry');
+  }
+  return result;
+}
+
+export async function updateEnquiry(input: UpdateEnquiryInput) {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('Your session has expired. Sign in again to continue.');
+
+  const { id, enquirySourceId, requiredServiceId, preferredCourseId, ...fields } = input;
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
+  const response = await fetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      ...fields,
+      sourceId: enquirySourceId === undefined ? undefined : enquirySourceId || null,
+      source: enquirySourceId === undefined ? undefined : null,
+      serviceId: requiredServiceId === undefined ? undefined : requiredServiceId || null,
+      preferredCourseId: preferredCourseId === undefined ? undefined : preferredCourseId || null,
+    }),
+  });
+  const result: EnquiryMutationResponse = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error?.message || result.message || 'Failed to update enquiry');
+  }
+  return result;
+}
+
+export async function deleteEnquiry(id: string) {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('Your session has expired. Sign in again to continue.');
+
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
+  const response = await fetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const result: EnquiryMutationResponse = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error?.message || result.message || 'Failed to delete enquiry');
+  }
+  return result;
+}
 
 export async function fetchEnquiry(id: string) {
   const token = localStorage.getItem('token');

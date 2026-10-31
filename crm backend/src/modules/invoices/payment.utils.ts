@@ -1,10 +1,12 @@
-import { InvoiceStatus } from '@prisma/client';
+import { roundMoney } from '../../shared/utils/money.js';
+export { roundMoney } from '../../shared/utils/money.js';
+import { InvoiceStatus, Prisma } from '@prisma/client';
 
-export function calculateInvoicePaymentStatus(totalAmount: number, amountPaid: number) {
+export function calculateInvoicePaymentStatus(totalAmount: Prisma.Decimal.Value, amountPaid: Prisma.Decimal.Value) {
   const normalizedTotal = roundMoney(totalAmount);
   const normalizedPaid = roundMoney(amountPaid);
-  if (normalizedPaid <= 0) return null;
-  return normalizedPaid >= normalizedTotal ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
+  if (normalizedPaid.lessThanOrEqualTo(0)) return null;
+  return normalizedPaid.greaterThanOrEqualTo(normalizedTotal) ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
 }
 
 export function formatPaymentNumber(prefix: string, nextNumber: number, padding: number, fiscalYear?: number) {
@@ -18,5 +20,3 @@ export function getIndiaFiscalYear(date: Date) {
   const month = Number(parts.find((part) => part.type === 'month')?.value);
   return month >= 4 ? year : year - 1;
 }
-
-export function roundMoney(value: number) { return Math.round((value + Number.EPSILON) * 100) / 100; }

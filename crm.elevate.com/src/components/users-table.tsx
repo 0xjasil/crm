@@ -295,7 +295,7 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Team Member</TableHead>
-                  <TableHead className="w-[190px]">Software Position</TableHead>
+                  <TableHead className="w-[190px]">Role</TableHead>
                   <TableHead className="min-w-[280px]">Active Feature Permissions</TableHead>
                   <TableHead className="w-[170px]">Assigned Branch</TableHead>
                   <TableHead className="w-[110px]">Created</TableHead>

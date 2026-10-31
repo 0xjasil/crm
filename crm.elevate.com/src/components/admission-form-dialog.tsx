@@ -64,7 +64,7 @@ import {
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Progress } from "./ui/progress";
-import { EnquirySource } from "@prisma/client";
+import { EnquirySource } from "@/types/api-models";
 import { AdmissionWithRelations, AdmissionGender } from "@/types/admission";
 import {
   createAdmission,

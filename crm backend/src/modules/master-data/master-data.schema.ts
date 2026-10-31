@@ -1,3 +1,4 @@
+import { moneySchema } from '../../shared/utils/money.schemas.js';
 ﻿import { z } from 'zod';
 
 export const branchSchema = z.object({
@@ -12,9 +13,9 @@ export const courseSchema = z.object({
   name: z.string().min(1, 'Course name is required'),
   description: z.string().optional().nullable(),
   duration: z.string().optional().nullable(),
-  courseFee: z.coerce.number().optional().nullable(),
-  admissionFee: z.coerce.number().optional().nullable(),
-  semesterFee: z.coerce.number().optional().nullable(),
+  courseFee: moneySchema.optional().nullable(),
+  admissionFee: moneySchema.optional().nullable(),
+  semesterFee: moneySchema.optional().nullable(),
   isActive: z.boolean().default(true),
 });
 

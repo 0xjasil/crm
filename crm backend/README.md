@@ -46,6 +46,10 @@ pnpm db:seed
 ```
 *Default Admin Credentials:* `admin@elevate.com` / `Admin@123`
 
+To seed only roles and branches, run `pnpm db:seed:master`.
+The master-data seed is maintained in `scripts/seed-master-data.ts`.
+
+
 ### 5. Start Dev Server
 ```bash
 pnpm dev
@@ -85,3 +89,23 @@ src/
 ├── types/                 # Global TypeScript definitions
 └── errors/                # Custom domain errors
 ```
+
+## Monetary values
+
+Money is stored as PostgreSQL `DECIMAL(19,4)` and calculated with Prisma `Decimal`.
+Tax rates use `DECIMAL(9,6)`. Invoice totals, tax, and invoice payments are rounded
+to two decimal places using half-up rounding. Unit prices retain up to four places.
+
+Monetary request fields accept decimal strings (preferred, for example `"0.10"`)
+and existing JSON numbers. Decimal values in responses serialize as strings;
+clients must handle these as monetary strings rather than concatenate them as numbers.
+Response envelopes and pagination counts are unchanged by this migration.
+
+Before deploying this version, back up the database, review values outside the
+new precision limits, and apply `prisma/migrations/202610300001_decimal_money`
+through the deployment migration process. Existing floats are cast to numeric;
+values with more than four fractional places are rounded by PostgreSQL, and
+non-finite or out-of-range values cause the transaction to fail. This migration
+does not repair precision already lost in historical floating-point data.
+Regenerate the Prisma client after the schema change. Coordinate the response
+string handling with the frontend before deploying the backend and migration.

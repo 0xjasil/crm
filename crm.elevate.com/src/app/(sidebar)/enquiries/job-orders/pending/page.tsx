@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/prisma';
+import { backendRequest } from '@/lib/api/backend-server';
 import PendingJobOrdersClient from './client';
 
 export default async function PendingJobOrdersPage() {
@@ -16,33 +16,7 @@ export default async function PendingJobOrdersPage() {
   const userRole = session.user.role || 'staff';
   const userId = session.user.id;
 
-  let branches: { id: string; name: string }[] = [];
-  let availableManagers: { id: string; name: string; email: string }[] = [];
-
-  // If Admin, fetch all branches
-  if (userRole === 'admin') {
-    branches = await prisma.branch.findMany({
-      select: { id: true, name: true },
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-    });
-  }
-
-  if (userRole === 'admin' || userRole === 'manager' || userRole === 'executive') {
-       availableManagers = await prisma.user.findMany({
-           where: {
-               OR: [
-                   { role: 'executive' },
-                   { role: 'manager' },
-                   { role: 'telecaller' } 
-               ],
-               banned: { not: true } 
-           },
-           select: { id: true, name: true, email: true },
-           orderBy: { name: 'asc' }
-       });
-  }
-
+  const { branches, availableManagers } = await backendRequest<{ branches: { id: string; name: string }[]; availableManagers: { id: string; name: string; email: string }[] }>('/ui/job-order-options');
 
   return (
     <PendingJobOrdersClient 

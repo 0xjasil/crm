@@ -5,9 +5,9 @@ import {
   Course,
   User,
   Enquiry,
-} from '@prisma/client';
+} from '@/types/api-models';
 
-// Re-export Prisma enums for easier use
+// Admission API status values
 export { AdmissionGender, AdmissionStatus };
 
 // Main Admission interface with relations
@@ -33,38 +33,6 @@ export interface CreateAdmissionInput {
   additionalNotes?: string;
   courseId: string;
   enquiryId?: string;
-}
-
-// Database creation data type (for Prisma operations)
-export interface AdmissionCreateData {
-  admissionNumber: string;
-  candidateName: string;
-  mobileNumber: string;
-  email: string | null;
-  gender: AdmissionGender | null;
-  dateOfBirth: Date | null;
-  address: string;
-  leadSource: string | null;
-  lastQualification: string | null;
-  yearOfPassing: number | null;
-  percentageCGPA: string | null;
-  instituteName: string | null;
-  additionalNotes: string | null;
-  agentName?: string ;
-  agentCommission?: number;
-  status: AdmissionStatus;
-  createdAt: Date;
-  handledBy?: { connect: { id: string } };
-  course: {
-    connect: { id: string };
-  };
-  createdBy: {
-    connect: { id: string };
-  };
-  enquiry?: {
-    connect: { id: string };
-  };
-  balance: number;
 }
 
 export interface UpdateAdmissionInput {

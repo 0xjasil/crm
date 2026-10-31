@@ -9,6 +9,7 @@ datasource db {
 }
 
 model User {
+  createdProposals Proposal[] @relation("CreatedProposals")
   id                  String         @id @default(cuid())
   name                String
   email               String         @unique
@@ -117,9 +118,9 @@ model Course {
   name         String
   description  String?
   duration     String?
-  courseFee    Float?
-  admissionFee Float?
-  semesterFee  Float?
+  courseFee    Decimal? @db.Decimal(19, 4)
+  admissionFee Decimal? @db.Decimal(19, 4)
+  semesterFee  Decimal? @db.Decimal(19, 4)
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -133,7 +134,7 @@ model Course {
 model Service {
   id        String    @id @default(cuid())
   name      String
-  price     Float     @default(0)
+  price     Decimal     @default(0) @db.Decimal(19, 4)
   updatedAt DateTime  @updatedAt
   createdAt DateTime  @default(now())
   isActive  Boolean   @default(true)
@@ -154,6 +155,7 @@ model EnquirySource {
 }
 
 model Enquiry {
+  proposals Proposal[]
   id                String         @id @default(cuid())
   candidateName     String
   phone             String
@@ -232,6 +234,7 @@ model CallLog {
 }
 
 model Admission {
+  serviceBills ServiceBill[]
   id                String           @id @default(cuid())
   admissionNumber   String           @unique
   candidateName     String
@@ -246,13 +249,13 @@ model Admission {
   percentageCGPA    String?
   instituteName     String?
   additionalNotes   String?
-  balance           Float            @default(0)
+  balance           Decimal            @default(0) @db.Decimal(19, 4)
   nextDueDate       DateTime?
   status            AdmissionStatus  @default(PENDING)
   enquiryId         String?
   courseId          String
   agentName         String?
-  agentCommission   Float?
+  agentCommission   Decimal? @db.Decimal(19, 4)
   createdByUserId   String
   handledByUserId   String?
   createdAt         DateTime         @default(now())
@@ -273,7 +276,7 @@ model Admission {
 model Receipt {
   id               String           @id @default(cuid())
   receiptNumber    String           @unique
-  amountCollected  Float
+  amountCollected  Decimal @db.Decimal(19, 4)
   collectedTowards CollectedTowards
   paymentDate      DateTime         @default(now())
   paymentMode      String?
@@ -300,23 +303,23 @@ model Invoice {
   billedTo        String
   invoiceDate     DateTime      @default(now())
   dueDate         DateTime?
-  subtotal        Float         @default(0)
-  taxRate         Float         @default(0.18)
-  taxAmount       Float         @default(0)
-  discountAmount Float         @default(0)
-  withholdingAmount Float       @default(0)
+  subtotal        Decimal         @default(0) @db.Decimal(19, 4)
+  taxRate         Decimal         @default(0.18) @db.Decimal(9, 6)
+  taxAmount       Decimal         @default(0) @db.Decimal(19, 4)
+  discountAmount Decimal         @default(0) @db.Decimal(19, 4)
+  withholdingAmount Decimal       @default(0) @db.Decimal(19, 4)
   withholdingType String?
-  serviceCharge   Float         @default(0)
-  otherCharges    Float         @default(0)
-  totalAmount     Float         @default(0)
+  serviceCharge   Decimal         @default(0) @db.Decimal(19, 4)
+  otherCharges    Decimal         @default(0) @db.Decimal(19, 4)
+  totalAmount     Decimal         @default(0) @db.Decimal(19, 4)
   status          InvoiceStatus @default(DRAFT)
   notes           String?
   createdByUserId String
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   customerId      String?
-  amountPaid      Float         @default(0)
-  balanceDue      Float         @default(0)
+  amountPaid      Decimal         @default(0) @db.Decimal(19, 4)
+  balanceDue      Decimal         @default(0) @db.Decimal(19, 4)
   shareToken      String?       @unique
   remindersEnabled Boolean      @default(false)
   reminderRules   String[]      @default([])
@@ -359,8 +362,8 @@ model InvoiceItem {
   id              String   @id @default(cuid())
   itemDescription String
   quantity        Int
-  unitPrice       Float
-  lineTotal       Float
+  unitPrice       Decimal @db.Decimal(19, 4)
+  lineTotal       Decimal @db.Decimal(19, 4)
   invoiceId       String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -376,7 +379,7 @@ model Payment {
   customerId      String?
   paymentNumber   String   @unique
   paymentDate     DateTime @default(now())
-  amount          Float
+  amount          Decimal @db.Decimal(19, 4)
   paymentMode     String
   depositTo       String?
   referenceNumber String?
@@ -423,7 +426,7 @@ model Expense {
   id          String          @id @default(cuid())
   title       String
   description String?
-  amount      Float
+  amount      Decimal @db.Decimal(19, 4)
   category    ExpenseCategory
   expenseDate DateTime
   notes       String?
@@ -566,4 +569,97 @@ enum NotificationType {
   JOB_ORDER_ASSIGNED
   FOLLOW_UP_ASSIGNED
   GENERAL
+}
+
+
+model ServiceBill {
+  id          String            @id @default(cuid())
+  serviceIds  String[]
+  total       Decimal             @default(0) @db.Decimal(19, 4)
+  status      BillingStatus     @default(UNPAID)
+  billId      String            @unique
+  paid        Decimal             @default(0) @db.Decimal(19, 4)
+  balance     Decimal             @default(0) @db.Decimal(19, 4)
+  billDate    DateTime          @default(now())
+  admissionId String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  admission   Admission         @relation(fields: [admissionId], references: [id])
+  items       ServiceBillItem[]
+
+  @@index([admissionId])
+  @@index([billId])
+  @@index([status])
+  @@index([billDate])
+  @@map("service_bill")
+}
+
+model ServiceBillItem {
+  id            String      @id @default(cuid())
+  serviceBillId String
+  amount        Decimal @db.Decimal(19, 4)
+  paymentMode   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  serviceBill   ServiceBill @relation(fields: [serviceBillId], references: [id], onDelete: Cascade)
+
+  @@index([serviceBillId])
+  @@map("service_bill_item")
+}
+
+model Proposal {
+  id            String         @id @default(cuid())
+  proposalNo    String         @unique
+  title         String?
+  enquiryId     String?
+  clientName    String
+  clientEmail   String?
+  clientPhone   String?
+  clientAddress String?
+  branch        String?
+  branchId      String?
+  status        String         @default("DRAFT")
+  validUntil    DateTime?
+  subtotal      Decimal          @default(0) @db.Decimal(19, 4)
+  taxRate       Decimal          @default(0) @db.Decimal(9, 6)
+  taxAmount     Decimal          @default(0) @db.Decimal(19, 4)
+  discountAmount Decimal         @default(0) @db.Decimal(19, 4)
+  totalAmount   Decimal          @default(0) @db.Decimal(19, 4)
+  notes         String?
+  terms         String?
+  createdById   String?
+  createdByUser String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  items         ProposalItem[]
+  enquiry       Enquiry?       @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  createdBy     User?          @relation("CreatedProposals", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([proposalNo])
+  @@index([enquiryId])
+  @@index([branchId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("proposal")
+}
+
+model ProposalItem {
+  id          String   @id @default(cuid())
+  proposalId  String
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Decimal    @default(0) @db.Decimal(19, 4)
+  total       Decimal    @default(0) @db.Decimal(19, 4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId])
+  @@map("proposal_item")
+}
+
+enum BillingStatus {
+  UNPAID
+  PAID
+  PARTIALLY_PAID
 }

@@ -13,7 +13,7 @@ export enum CollectedTowards {
 /**
  * Interface representing a receipt in the system
  */
-import { User, AdmissionStatus } from "@prisma/client";
+import { User, AdmissionStatus } from "@/types/api-models";
 
 export interface Receipt {
   id: string;

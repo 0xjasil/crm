@@ -1,3 +1,4 @@
+import { decimal } from '../../shared/utils/money.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { PrismaClient } from '@prisma/client';
@@ -32,18 +33,18 @@ for (const rate of [0, 0.05, 0.12, 0.18, 0.28]) {
     const { service, saved } = fixture();
     const input = updateInvoiceSchema.parse({ taxRate: rate });
     await service.updateInvoice('invoice-1', input, 'admin-1');
-    assert.equal(saved()?.taxRate, rate);
-    assert.equal(saved()?.taxAmount, 1000 * rate);
-    assert.equal(saved()?.totalAmount, 1000 + 1000 * rate);
-    assert.equal(saved()?.balanceDue, 1000 + 1000 * rate);
+    assert.equal(decimal(saved()?.taxRate).toString(), decimal(rate).toString());
+    assert.equal(decimal(saved()?.taxAmount).toString(), decimal(1000 * rate).toString());
+    assert.equal(decimal(saved()?.totalAmount).toString(), decimal(1000 + 1000 * rate).toString());
+    assert.equal(decimal(saved()?.balanceDue).toString(), decimal(1000 + 1000 * rate).toString());
   });
 }
 
 test('omitting the tax rate preserves the existing rate', async () => {
   const { service, saved } = fixture();
   await service.updateInvoice('invoice-1', updateInvoiceSchema.parse({ notes: 'Updated' }), 'admin-1');
-  assert.equal(saved()?.taxRate, 0.18);
-  assert.equal(saved()?.taxAmount, 180);
+  assert.equal(decimal(saved()?.taxRate).toString(), decimal(0.18).toString());
+  assert.equal(decimal(saved()?.taxAmount).toString(), decimal(180).toString());
 });
 
 test('changing items and tax together recalculates from the new subtotal', async () => {
@@ -52,15 +53,15 @@ test('changing items and tax together recalculates from the new subtotal', async
     taxRate: 0.05,
     items: [{ itemDescription: 'Solar service', quantity: 2, unitPrice: 1000 }],
   }), 'admin-1');
-  assert.equal(saved()?.subtotal, 2000);
-  assert.equal(saved()?.taxAmount, 100);
-  assert.equal(saved()?.totalAmount, 2100);
+  assert.equal(decimal(saved()?.subtotal).toString(), decimal(2000).toString());
+  assert.equal(decimal(saved()?.taxAmount).toString(), decimal(100).toString());
+  assert.equal(decimal(saved()?.totalAmount).toString(), decimal(2100).toString());
 });
 
 test('tax reduction updates a partially paid invoice balance', async () => {
   const { service, saved } = fixture(500);
   await service.updateInvoice('invoice-1', updateInvoiceSchema.parse({ taxRate: 0 }), 'admin-1');
-  assert.equal(saved()?.balanceDue, 500);
+  assert.equal(decimal(saved()?.balanceDue).toString(), decimal(500).toString());
   assert.equal(saved()?.status, 'PARTIALLY_PAID');
 });
 

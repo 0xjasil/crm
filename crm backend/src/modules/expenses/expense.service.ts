@@ -1,4 +1,5 @@
-﻿import { PrismaClient, Prisma, ExpenseCategory } from '@prisma/client';
+import { decimal } from '../../shared/utils/money.js';
+import { PrismaClient, Prisma, ExpenseCategory } from '@prisma/client';
 import { NotFoundError } from '../../errors/app-error.js';
 import { CreateExpenseInput, ExpenseFilterInput, UpdateExpenseInput } from './expense.schema.js';
 
@@ -88,11 +89,11 @@ export class ExpenseService {
       select: { amount: true, category: true },
     });
 
-    const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const categoryBreakdown: Record<string, number> = {};
+    const totalAmount = expenses.reduce((sum, e) => decimal(sum).plus(e.amount), decimal(0));
+    const categoryBreakdown: Record<string, Prisma.Decimal> = {};
 
     for (const e of expenses) {
-      categoryBreakdown[e.category] = (categoryBreakdown[e.category] || 0) + e.amount;
+      categoryBreakdown[e.category] = decimal(categoryBreakdown[e.category] || 0).plus(e.amount);
     }
 
     return {

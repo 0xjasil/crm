@@ -1,0 +1,16 @@
+import type * as ApiModels from '@/types/api-models';
+interface ActionResponse<T> {
+    success: boolean;
+    message: string;
+    data?: T;
+}
+
+export type ListStudentsResponse = ActionResponse<{ id: string; candidateName: string; admissionNumber: string; course?: { id: string; name: string; duration?: string | null; courseFee?: number | null; } | null; }[]>;
+
+export type GetServiceBillByIdResponse = { success: boolean; message: string; data: { id: string; createdAt: Date; updatedAt: Date; status: ApiModels.BillingStatus; balance: number; admissionId: string; serviceIds: string[]; total: number; billId: string; paid: number; billDate: Date; } | null; } | { success: boolean; message: string; data?: undefined; } | null;
+
+export type GetServicesByIdsResponse = never[] | { success: boolean; message: string; data: { name: string; id: string; createdAt: Date; updatedAt: Date; isActive: boolean; price: number; }[]; } | { success: boolean; message: string; data?: undefined; };
+
+export type GetAdmissionHistoryByIdResponse = { success: boolean; message: string; data: ({ course: { name: string; id: string; createdAt: Date; updatedAt: Date; duration: string | null; description: string | null; isActive: boolean; courseFee: number | null; admissionFee: number | null; semesterFee: number | null; }; createdBy: { name: string; id: string; email: string; }; receipts: { id: string; createdAt: Date; updatedAt: Date; courseId: string; notes: string | null; createdById: string; paymentDate: Date; paymentMode: string | null; receiptNumber: string; amountCollected: number; collectedTowards: ApiModels.CollectedTowards; transactionId: string | null; admissionId: string; }[]; serviceBills: { id: string; createdAt: Date; updatedAt: Date; status: ApiModels.BillingStatus; balance: number; admissionId: string; serviceIds: string[]; total: number; billId: string; paid: number; billDate: Date; }[]; } & { id: string; email: string | null; createdAt: Date; updatedAt: Date; candidateName: string; mobileNumber: string; status: ApiModels.AdmissionStatus; gender: ApiModels.AdmissionGender | null; dateOfBirth: Date | null; address: string; leadSource: string | null; lastQualification: string | null; yearOfPassing: number | null; percentageCGPA: string | null; instituteName: string | null; additionalNotes: string | null; courseId: string; agentName: string | null; agentCommission: number | null; enquiryId: string | null; admissionNumber: string; balance: number; nextDueDate: Date | null; createdByUserId: string; handledByUserId: string | null; }) | null; } | { success: boolean; message: string; data?: undefined; } | null;
+
+export type GetServiceBillDetailsForPDFResponse = { success: boolean; message: string; data?: undefined; } | { success: boolean; message: string; data: { services: { name: string; price: number; }[]; admission: { candidateName: string; admissionNumber: string; course: { name: string; id: string; duration: string | null; courseFee: number | null; admissionFee: number | null; }; }; id: string; createdAt: Date; updatedAt: Date; status: ApiModels.BillingStatus; balance: number; admissionId: string; serviceIds: string[]; total: number; billId: string; paid: number; billDate: Date; }; };

@@ -5,6 +5,8 @@ import { AuthService } from './auth.service.js';
 
 export class AuthController {
   static async login(request: FastifyRequest, reply: FastifyReply) {
+    const startTime = performance.now();
+
     const validated = loginSchema.parse(request.body);
     const authService = new AuthService(request.server.prisma);
     const user = await authService.login(validated);
@@ -41,6 +43,9 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60, // 7 days
     });
 
+    const elapsed = performance.now() - startTime;
+    request.log.info(`Login completed in ${elapsed.toFixed(2)}ms`);
+
     return reply.send(successResponse({ user, token }, 'Logged in successfully'));
   }
 
@@ -52,7 +57,7 @@ export class AuthController {
     return reply.status(201).send(successResponse(newUser, 'User registered successfully'));
   }
 
-  static async logout(request: FastifyRequest, reply: FastifyReply) {
+  static async logout(_request: FastifyRequest, reply: FastifyReply) {
     reply.clearCookie('auth_token', { path: '/' });
     return reply.send(successResponse(null, 'Logged out successfully'));
   }

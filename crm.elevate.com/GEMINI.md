@@ -8,12 +8,12 @@ This is a Customer Relationship Management (CRM) application built with a modern
 *   **Language:** TypeScript
 *   **Styling:** Tailwind CSS
 *   **UI Components:** shadcn/ui + Radix UI
-*   **Database:** PostgreSQL with Prisma ORM
+*   **Data source:** Fastify API over HTTP; no frontend database or ORM
 *   **Package Manager:** pnpm
 
 **Architecture:**
 
-The project follows a modular architecture with a clear separation of concerns. The `src` directory contains the main application code, including the Next.js app, components, constants, configuration, types, and utility functions. The `prisma` directory contains the database schema and seed scripts.
+The `src` directory contains the Next.js routes, components, constants, configuration, types, server actions, and utility functions. All CRM data comes from the Fastify API. Follow `agent.md` for the target feature-based architecture and migration conventions.
 
 ## Building and Running
 
@@ -29,7 +29,7 @@ pnpm install
 pnpm dev
 ```
 
-This will start the development server with Turbopack at `http://localhost:3000`.
+This will start the Next.js development server at `http://localhost:3000`.
 
 **3. Build for Production:**
 
@@ -49,20 +49,20 @@ pnpm start
 pnpm lint
 ```
 
-**6. Seed the Database:**
+**6. Check Types:**
 
 ```bash
-pnpm db:seed
+pnpm typecheck
 ```
 
 ## Development Conventions
 
 *   **Type Safety:** The project uses TypeScript extensively with proper type definitions located in the `src/types` directory.
 *   **Configuration Management:** Application settings are centralized in `src/config/app.ts`.
-*   **Constants Management:** UI data, such as navigation links and dashboard metrics, is stored in the `src/constants` directory.
+*   **Constants Management:** Shared enquiry and permission constants are in `src/constants`; sidebar navigation currently lives in `src/components/app-sidebar.tsx`.
 *   **Component Structure:** Components are designed to be reusable and composable, following the single responsibility principle.
 *   **Utility Functions:** Common functions are centralized in `src/lib/utils.ts`.
-*   **Database:** The database schema is managed with Prisma in `prisma/schema.prisma`.
+*   **API Access:** Server requests go through `src/lib/api/client.ts`; `backend-server.ts` provides compatibility exports for existing callers. Never add database access to this frontend.
 *   **Git Commit Messages:** Whenever committing to the repository, write comprehensive, detailed commit messages listing all completed tasks, fixes, and features as itemized bullet points.
 
 ## Page-by-Page Functionality

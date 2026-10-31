@@ -1,9 +1,11 @@
-﻿import { formatCurrency } from '../../utils/format.js';
+import type { Prisma } from '@prisma/client';
+import { decimal } from '../../shared/utils/money.js';
+import { formatCurrency } from '../../utils/format.js';
 
 export interface ReceiptWithAdmission {
   id: string;
   receiptNumber: string;
-  amountCollected: number;
+  amountCollected: Prisma.Decimal.Value;
   collectedTowards: string;
   paymentDate: Date | string;
   paymentMode: string | null;
@@ -13,12 +15,12 @@ export interface ReceiptWithAdmission {
     nextDueDate: Date | string | null;
     course: {
       name: string;
-      courseFee: number | null;
-      admissionFee: number | null;
-      semesterFee: number | null;
+      courseFee: Prisma.Decimal.Value | null;
+      admissionFee: Prisma.Decimal.Value | null;
+      semesterFee: Prisma.Decimal.Value | null;
     };
     receipts: Array<{
-      amountCollected: number;
+      amountCollected: Prisma.Decimal.Value;
     }>;
   };
 }
@@ -45,17 +47,17 @@ export class ReceiptTemplateMapper {
     const courseFee = data.admission.course.courseFee || 0;
     const admissionFee = data.admission.course.admissionFee || 0;
     const semesterFee = data.admission.course.semesterFee || 0;
-    const totalCourseFee = courseFee + admissionFee + semesterFee;
+    const totalCourseFee = decimal(courseFee).plus(admissionFee).plus(semesterFee);
 
-    const totalPaid = data.admission.receipts.reduce((sum, r) => sum + r.amountCollected, 0);
-    const remainingBalance = totalCourseFee - totalPaid;
+    const totalPaid = data.admission.receipts.reduce((sum, r) => decimal(sum).plus(r.amountCollected), decimal(0));
+    const remainingBalance = decimal(totalCourseFee).minus(totalPaid);
 
     const studentInfo = `${data.admission.candidateName}\nAdmission No: ${data.admission.admissionNumber}`;
 
     const feeBreakdown: string[][] = [];
-    if (courseFee > 0) feeBreakdown.push([`Course: ${data.admission.course.name}`, formatCurrency(courseFee)]);
-    if (admissionFee > 0) feeBreakdown.push(['Admission Fee', formatCurrency(admissionFee)]);
-    if (semesterFee > 0) feeBreakdown.push(['Semester Fee', formatCurrency(semesterFee)]);
+    if (decimal(courseFee).greaterThan(0)) feeBreakdown.push([`Course: ${data.admission.course.name}`, formatCurrency(courseFee)]);
+    if (decimal(admissionFee).greaterThan(0)) feeBreakdown.push(['Admission Fee', formatCurrency(admissionFee)]);
+    if (decimal(semesterFee).greaterThan(0)) feeBreakdown.push(['Semester Fee', formatCurrency(semesterFee)]);
     feeBreakdown.push(['Total Course Fee', formatCurrency(totalCourseFee)]);
     feeBreakdown.push([`Amount Paid toward ${data.collectedTowards.replace(/_/g, ' ')}`, formatCurrency(data.amountCollected)]);
 
@@ -85,7 +87,7 @@ export class ReceiptTemplateMapper {
   static validateReceiptData(data: ReceiptWithAdmission): boolean {
     if (!data.receiptNumber) throw new Error('Receipt number is required');
     if (!data.paymentDate) throw new Error('Payment date is required');
-    if (data.amountCollected <= 0) throw new Error('Amount collected must be greater than 0');
+    if (decimal(data.amountCollected).lessThanOrEqualTo(0)) throw new Error('Amount collected must be greater than 0');
     if (!data.admission?.candidateName) throw new Error('Student name is required');
     if (!data.admission?.admissionNumber) throw new Error('Admission number is required');
     if (!data.admission?.course?.name) throw new Error('Course information is required');

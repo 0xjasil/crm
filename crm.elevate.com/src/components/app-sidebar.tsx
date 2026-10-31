@@ -13,7 +13,6 @@ import {
   IconDashboard,
   IconDatabase,
   IconDotsVertical,
-  IconFileDollar,
   IconFileInvoice,
   IconFileText,
   IconListDetails,
@@ -100,7 +99,6 @@ const MAIN_ITEMS: NavigationEntry[] = [
   { title: 'Follow-ups', url: '/follow-ups', icon: IconListDetails, permission: 'follow_ups', count: 'followUps' },
   { title: 'Call Register', url: '/call-register', icon: IconPhoneCall, permission: 'call_register' },
   { title: 'Site Surveys & Projects', url: '/admissions', icon: IconSun, permission: 'projects' },
-  { title: 'Service Billing', url: '/services', icon: IconFileDollar, permission: 'services' },
   { title: 'Proposals', url: '/proposals', icon: IconFileText, permission: 'proposals' },
 ];
 

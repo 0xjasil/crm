@@ -12,7 +12,7 @@ import {
     markAsRead,
 } from '@/server/actions/notification';
 import { NotificationItem } from './notification-item';
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '@/types/api-models';
 
 interface Notification {
     id: string;

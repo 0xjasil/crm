@@ -1,4 +1,6 @@
-﻿import { formatCurrency } from '../../utils/format.js';
+import type { Prisma } from '@prisma/client';
+import { decimal } from '../../shared/utils/money.js';
+import { formatCurrency } from '../../utils/format.js';
 
 export interface InvoiceWithItems {
   id: string;
@@ -6,20 +8,20 @@ export interface InvoiceWithItems {
   billedTo: string;
   invoiceDate: Date | string;
   dueDate: Date | string | null;
-  subtotal: number;
-  taxRate: number;
-  taxAmount: number;
-  serviceCharge: number;
-  otherCharges: number;
-  totalAmount: number;
+  subtotal: Prisma.Decimal.Value;
+  taxRate: Prisma.Decimal.Value;
+  taxAmount: Prisma.Decimal.Value;
+  serviceCharge: Prisma.Decimal.Value;
+  otherCharges: Prisma.Decimal.Value;
+  totalAmount: Prisma.Decimal.Value;
   status: string;
   notes?: string | null;
   items: Array<{
     id?: string;
     itemDescription: string;
     quantity: number;
-    unitPrice: number;
-    lineTotal: number;
+    unitPrice: Prisma.Decimal.Value;
+    lineTotal: Prisma.Decimal.Value;
   }>;
 }
 
@@ -29,9 +31,9 @@ export interface TemplateInputs {
   orders: string[][];
   taxInput: string;
   date: string;
-  subtotal: number;
-  tax: number;
-  total: number;
+  subtotal: Prisma.Decimal.Value;
+  tax: Prisma.Decimal.Value;
+  total: Prisma.Decimal.Value;
   subtotalFormatted: string;
   taxFormatted: string;
   totalFormatted: string;
@@ -70,7 +72,7 @@ export class InvoiceTemplateMapper {
       }),
       orders: orderItems,
       taxInput: JSON.stringify({
-        rate: (invoice.taxRate * 100).toString(),
+        rate: (decimal(invoice.taxRate).times(100)).toString(),
       }),
       date: dueDate,
       subtotal: invoice.subtotal,
@@ -93,7 +95,7 @@ export class InvoiceTemplateMapper {
     invoice.items.forEach((item, index) => {
       if (!item.itemDescription || item.itemDescription.trim() === '') throw new Error(`Item ${index + 1}: Description is required`);
       if (item.quantity <= 0) throw new Error(`Item ${index + 1}: Quantity must be greater than 0`);
-      if (item.unitPrice < 0) throw new Error(`Item ${index + 1}: Unit price cannot be negative`);
+      if (decimal(item.unitPrice).lessThan(0)) throw new Error(`Item ${index + 1}: Unit price cannot be negative`);
     });
 
     return true;

@@ -1,8 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { paginatedResponse, successResponse } from '../../utils/response.js';
 import {
-  assignEnquirySchema,
-  bulkAssignEnquirySchema,
   changeEnquiryStatusSchema,
   createEnquirySchema,
   enquiryFilterSchema,
@@ -10,6 +8,9 @@ import {
 } from './enquiry.schema.js';
 import { EnquiryService } from './enquiry.service.js';
 import { ForbiddenError } from '../../errors/app-error.js';
+import { assignEnquiries, assignmentSchema } from './enquiry-assignment.service.js';
+import { z } from 'zod';
+import { invalidateDashboardCache } from '../workflows/support/lib/cache/cache-invalidation.js';
 
 export class EnquiryController {
   static async listEnquiries(request: FastifyRequest, reply: FastifyReply) {
@@ -39,7 +40,7 @@ export class EnquiryController {
   static async createEnquiry(request: FastifyRequest, reply: FastifyReply) {
     const validated = createEnquirySchema.parse(request.body);
     const service = new EnquiryService(request.server.prisma);
-    const created = await service.createEnquiry(validated, request.user.id);
+    const created = await service.createEnquiry(validated, request.user);
     return reply.status(201).send(successResponse(created, 'Enquiry created successfully'));
   }
 
@@ -47,14 +48,14 @@ export class EnquiryController {
     const { id } = request.params as { id: string };
     const validated = updateEnquirySchema.parse(request.body);
     const service = new EnquiryService(request.server.prisma);
-    const updated = await service.updateEnquiry(id, validated, request.user.id);
+    const updated = await service.updateEnquiry(id, validated, request.user);
     return reply.send(successResponse(updated, 'Enquiry updated successfully'));
   }
 
   static async deleteEnquiry(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
     const service = new EnquiryService(request.server.prisma);
-    await service.deleteEnquiry(id);
+    await service.deleteEnquiry(id, request.user);
     return reply.send(successResponse(null, 'Enquiry deleted successfully'));
   }
 
@@ -68,16 +69,16 @@ export class EnquiryController {
 
   static async assignEnquiry(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
-    const validated = assignEnquirySchema.parse(request.body);
-    const service = new EnquiryService(request.server.prisma);
-    const updated = await service.assignEnquiry(id, validated.assignedToUserId, request.user.id);
-    return reply.send(successResponse(updated, 'Enquiry assigned successfully'));
+    const input = assignmentSchema.parse(request.body);
+    const result = await assignEnquiries(request.server.prisma, request.currentUser, [id], input);
+    await invalidateDashboardCache();
+    return reply.send(successResponse(result, 'Enquiry assigned and job order created successfully'));
   }
 
   static async bulkAssign(request: FastifyRequest, reply: FastifyReply) {
-    const validated = bulkAssignEnquirySchema.parse(request.body);
-    const service = new EnquiryService(request.server.prisma);
-    const result = await service.bulkAssign(validated, request.user.id);
+    const input = assignmentSchema.extend({ enquiryIds: z.array(z.string().min(1)).min(1).max(5000) }).parse(request.body);
+    const result = await assignEnquiries(request.server.prisma, request.currentUser, input.enquiryIds, input);
+    await invalidateDashboardCache();
     return reply.send(successResponse(result, `${result.count} enquiries assigned successfully`));
   }
 

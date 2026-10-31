@@ -22,25 +22,27 @@ export const enquiryFilterSchema = z.object({
 });
 
 export const createEnquirySchema = z.object({
-  candidateName: z.string().min(1, 'Candidate name is required'),
-  phone: z.string().min(1, 'Phone number is required'),
+  candidateName: z.string().min(1, 'Candidate name is required').max(100),
+  phone: z.string().min(10, 'Valid phone number is required').max(15),
   contact2: z.string().optional().nullable(),
-  email: z.string().email().optional().nullable(),
+  email: z.string().email().or(z.literal('')).optional().nullable(),
   address: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   feedback: z.string().optional().nullable(),
   source: z.string().optional().nullable(),
+  sourceId: z.string().optional().nullable(),
   branchId: z.string().optional().nullable(),
   preferredCourseId: z.string().optional().nullable(),
   serviceId: z.string().optional().nullable(),
   assignedToUserId: z.string().optional().nullable(),
+  createdByUserId: z.string().min(1).optional(),
   status: z.enum([
     'NEW', 'CONTACTED', 'INTERESTED', 'NOT_INTERESTED',
     'FOLLOW_UP', 'ENROLLED', 'DROPPED', 'INVALID'
   ]).default('NEW'),
 });
 
-export const updateEnquirySchema = createEnquirySchema.partial();
+export const updateEnquirySchema = createEnquirySchema.omit({ createdByUserId: true, assignedToUserId: true }).partial();
 
 export const changeEnquiryStatusSchema = z.object({
   status: z.enum([
@@ -48,15 +50,6 @@ export const changeEnquiryStatusSchema = z.object({
     'FOLLOW_UP', 'ENROLLED', 'DROPPED', 'INVALID'
   ]),
   remarks: z.string().optional().nullable(),
-});
-
-export const assignEnquirySchema = z.object({
-  assignedToUserId: z.string().min(1, 'Assigned user ID is required'),
-});
-
-export const bulkAssignEnquirySchema = z.object({
-  enquiryIds: z.array(z.string().min(1)).min(1, 'At least one enquiry ID required'),
-  assignedToUserId: z.string().min(1, 'Assigned user ID is required'),
 });
 
 export const addEnquiryActivitySchema = z.object({
@@ -69,6 +62,4 @@ export type EnquiryFilterInput = z.infer<typeof enquiryFilterSchema>;
 export type CreateEnquiryInput = z.infer<typeof createEnquirySchema>;
 export type UpdateEnquiryInput = z.infer<typeof updateEnquirySchema>;
 export type ChangeEnquiryStatusInput = z.infer<typeof changeEnquiryStatusSchema>;
-export type AssignEnquiryInput = z.infer<typeof assignEnquirySchema>;
-export type BulkAssignEnquiryInput = z.infer<typeof bulkAssignEnquirySchema>;
 export type AddEnquiryActivityInput = z.infer<typeof addEnquiryActivitySchema>;

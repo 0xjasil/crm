@@ -1,3 +1,4 @@
+import { decimal, moneyMax } from '../../shared/utils/money.js';
 import {
   PrismaClient,
   Prisma,
@@ -86,9 +87,9 @@ export class AdmissionService {
 
     if (!course) throw new BadRequestError('Selected course does not exist');
 
-    const totalCourseFee = (course.courseFee || 0) + (course.admissionFee || 0) + (course.semesterFee || 0);
+    const totalCourseFee = decimal(course.courseFee || 0).plus((course.admissionFee || 0)).plus((course.semesterFee || 0));
     const initialPaid = input.initialPayment ? input.initialPayment.amount : 0;
-    const initialBalance = Math.max(0, totalCourseFee - initialPaid);
+    const initialBalance = moneyMax(0, decimal(totalCourseFee).minus(initialPaid));
 
     return this.prisma.$transaction(async (tx) => {
       // Generate unique admission number ADM-YYYYMM-XXXX
@@ -123,7 +124,7 @@ export class AdmissionService {
       });
 
       // If initial receipt was provided
-      if (input.initialPayment && input.initialPayment.amount > 0) {
+      if (input.initialPayment && decimal(input.initialPayment.amount).greaterThan(0)) {
         const receiptCount = await tx.receipt.count();
         const receiptNumber = `RCP-${datePrefix}-${String(receiptCount + 1).padStart(4, '0')}`;
 
