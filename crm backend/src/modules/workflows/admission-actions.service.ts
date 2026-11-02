@@ -1,5 +1,6 @@
 import { moneySchema } from '../../shared/utils/money.schemas.js';
 import { ForbiddenError } from '../../errors/app-error.js';
+import { getUserEffectivePermissions } from './support/lib/permissions.js';
 import type { PrismaClient } from '@prisma/client';
 import type { WorkflowUser } from './workflow-user.js';
 import { z } from "zod";
@@ -14,6 +15,37 @@ import { normalizePagination, validateSortField, validateSortOrder, buildPaginat
 export function createAdmissionActionsService(prisma: PrismaClient, currentUser: WorkflowUser) {
     async function getCurrentUser() { return currentUser; }
     const agentRoles = ["manager", "admin", "counsellor"];
+    const normalizedRole = (role?: string | null) => (role || '').toLowerCase().trim();
+    const isManager = (role?: string | null) => ['manager', 'branch manager'].includes(normalizedRole(role));
+    const isManagerOrAdmin = (role?: string | null) => normalizedRole(role) === 'admin' || isManager(role);
+    const isEligibleAssignee = (user: { role?: string | null; userRole?: { permissions: string[] } | null; permissions?: string[] }) =>
+        !isManager(user.role) && getUserEffectivePermissions(user).some((permission) => ['*', 'all', 'projects'].includes(permission));
+
+    async function getEligibleAssignee(id: string, branch?: string | null) {
+        const assignee = await prisma.user.findUnique({
+            where: { id },
+            select: { id: true, role: true, branch: true, banned: true, userRole: { select: { permissions: true } } },
+        });
+        if (!assignee || assignee.banned || !isEligibleAssignee(assignee) || (branch && assignee.branch !== branch)) {
+            throw new Error('Select an active user with Site Surveys & Projects permission');
+        }
+        return assignee;
+    }
+
+    function getVisibilityWhere(user: WorkflowUser): Prisma.AdmissionWhereInput {
+        const role = normalizedRole(user.role);
+        if (role === 'admin') return {};
+        if (isManager(role)) {
+            if (!user.branch) return { id: '__no_branch_access__' };
+            return {
+                OR: [
+                    { enquiry: { branchId: user.branch } },
+                    { enquiryId: null, createdBy: { branch: user.branch } },
+                ],
+            };
+        }
+        return { assignedToUserId: user.id };
+    }
     function generateAdmissionNumber(): string {
         const date = new Date();
         const year = date.getFullYear();
@@ -38,6 +70,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
         instituteName: z.string().optional(),
         additionalNotes: z.string().optional(),
         courseId: z.string().min(1, "Course selection is required"),
+        assignedToUserId: z.string().min(1, 'An assignee is required'),
         agentName: z.string().optional(),
         agentCommission: moneySchema.refine((value) => value.greaterThanOrEqualTo(0), "Amount is below the minimum").optional(),
         enquiryId: z.string().optional(),
@@ -82,6 +115,10 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
     const getAdmissionByIdSchema = z.object({
         id: z.string().min(1, "Admission ID is required"),
     });
+    const reassignAdmissionSchema = z.object({
+        id: z.string().min(1, 'Admission ID is required'),
+        assignedToUserId: z.string().min(1, 'An assignee is required'),
+    });
     const getAdmissionsByEnquirySchema = z.object({
         enquiryId: z.string().min(1, "Enquiry ID is required"),
     });
@@ -89,6 +126,8 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
         const parsedInput = createAdmissionSchema.parse(input ?? {});
         try {
             const user = await getCurrentUser();
+            if (isManager(user.role) && !user.branch) throw new Error('A branch is required to assign site surveys');
+            const assignee = await getEligibleAssignee(parsedInput.assignedToUserId, isManager(user.role) ? user.branch : undefined);
             // Get course details
             const course = await prisma.course.findUnique({
                 where: { id: parsedInput.courseId },
@@ -147,6 +186,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
                 createdBy: {
                     connect: { id: user.id },
                 },
+                assignedTo: { connect: { id: assignee.id } },
                 balance: calculateTotalFee({ ...course, agentCommission: parsedInput.agentCommission || 0 }),
             };
             // Add enquiryId only if it exists
@@ -347,27 +387,18 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
             // Build where clause
             const where: Prisma.AdmissionWhereInput = {};
             const user = await getCurrentUser();
-            const role = (user.role || "").toLowerCase();
-            if (role === "telecaller") {
-                where.createdByUserId = user.id;
-            }
-            else if ((role === "manager" || role === "executive" || role === "branch manager") &&
-                user.branch) {
-                where.OR = [
-                    { enquiry: { branchId: user.branch } },
-                    { createdBy: { branch: user.branch } },
-                ];
-            }
-            else if (branchId) {
+            const role = normalizedRole(user.role);
+            if (role === 'admin' && branchId) {
                 where.OR = [
                     { enquiry: { branchId } },
                     { createdBy: { branch: branchId } },
                 ];
+            } else if (role !== 'admin') {
+                Object.assign(where, getVisibilityWhere(user));
             }
-            // Add status filter
-            if (status) {
-                where.status = status;
-            }
+            // Deleted admissions are soft-deleted as CANCELLED. Hide them from
+            // the normal list, but keep them available through the Cancelled filter.
+            where.status = status ?? { not: AdmissionStatus.CANCELLED };
             // Add search filter
             if (search && search.trim()) {
                 const query = search.trim();
@@ -404,6 +435,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
                     take: limit,
                     orderBy: { [sortBy]: sortOrder },
                     include: {
+                        assignedTo: { select: { id: true, name: true } },
                         course: {
                             select: {
                                 id: true,
@@ -447,9 +479,10 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
         const parsedInput = getAdmissionByIdSchema.parse(input ?? {});
         try {
             const { id } = parsedInput;
-            const admission = await prisma.admission.findUnique({
-                where: { id },
+            const admission = await prisma.admission.findFirst({
+                where: { AND: [{ id }, getVisibilityWhere(currentUser)] },
                 include: {
+                    assignedTo: { select: { id: true, name: true } },
                     course: {
                         select: {
                             id: true,
@@ -492,6 +525,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
             const { enquiryId } = parsedInput;
             const admissions = await prisma.admission.findMany({
                 where: {
+                    AND: [getVisibilityWhere(currentUser)],
                     enquiryId,
                     status: { not: AdmissionStatus.CANCELLED },
                 },
@@ -548,5 +582,34 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
             throw new Error("Failed to fetch courses");
         }
     }
-    return { getCurrentUser, createAdmission, updateInstallationProgress, updateAdmission, deleteAdmission, getAdmissions, getAdmissionById, getAdmissionsByEnquiry, getEnquirySourcesForAdmission, getCoursesForAdmission };
+    async function getSurveyAssignees() {
+        const role = normalizedRole(currentUser.role);
+        const branch = isManager(role) ? currentUser.branch : undefined;
+        if (isManager(role) && !branch) return { success: true, data: [] };
+        const users = await prisma.user.findMany({
+            where: { OR: [{ banned: false }, { banned: null }], ...(branch ? { branch } : {}) },
+            select: { id: true, name: true, role: true, branch: true, userRole: { select: { permissions: true } } },
+            orderBy: { name: 'asc' },
+        });
+        return {
+            success: true,
+            data: users
+                .filter((user) => isEligibleAssignee(user))
+                .map(({ id, name, role, branch }) => ({ id, name, role, branch })),
+        };
+    }
+
+    async function reassignAdmission(input: unknown) {
+        if (!isManagerOrAdmin(currentUser.role)) throw new ForbiddenError('Only managers and administrators can reassign surveys');
+        if (isManager(currentUser.role) && !currentUser.branch) throw new ForbiddenError('A branch is required to reassign surveys');
+        const { id, assignedToUserId } = reassignAdmissionSchema.parse(input ?? {});
+        const existing = await prisma.admission.findFirst({ where: { AND: [{ id }, getVisibilityWhere(currentUser)] } });
+        if (!existing) throw new Error('Survey not found');
+        const assignee = await getEligibleAssignee(assignedToUserId, isManager(currentUser.role) ? currentUser.branch : undefined);
+        await prisma.admission.update({ where: { id }, data: { assignedTo: { connect: { id: assignee.id } } } });
+        await invalidateDashboardCache();
+        return { success: true, message: 'Survey assignee updated successfully' };
+    }
+
+    return { getCurrentUser, createAdmission, updateInstallationProgress, updateAdmission, deleteAdmission, getAdmissions, getAdmissionById, getAdmissionsByEnquiry, getSurveyAssignees, reassignAdmission, getEnquirySourcesForAdmission, getCoursesForAdmission };
 }

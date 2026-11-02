@@ -10,6 +10,7 @@ import {
 
 export interface UserPermissionContext {
   role?: string | null;
+  permissions?: string[];
   userRole?: {
     id?: string;
     name?: string;
@@ -22,6 +23,11 @@ export interface UserPermissionContext {
  */
 export function getUserEffectivePermissions(user?: UserPermissionContext | null): string[] {
   if (!user) return [];
+
+  // 0. If pre-resolved permissions already exist on the user, use them directly
+  if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
+    return user.permissions;
+  }
 
   const roleNormalized = (user.role || '').toLowerCase().trim();
 
@@ -62,7 +68,7 @@ export function hasFeatureAccess(
 ): boolean {
   if (!user) return false;
 
-  const permissions = getUserEffectivePermissions(user);
+  const permissions = user.permissions ?? getUserEffectivePermissions(user);
 
   if (permissions.includes('*') || permissions.includes('all')) {
     return true;
@@ -100,7 +106,7 @@ export function getPositionDefinition(roleKeyOrName?: string | null): SoftwarePo
 export function getFirstPermittedPath(user?: UserPermissionContext | null): string {
   if (!user) return '/login';
 
-  const permissions = getUserEffectivePermissions(user);
+  const permissions = user.permissions ?? getUserEffectivePermissions(user);
 
   if (permissions.includes('*') || permissions.includes('dashboard')) {
     return '/dashboard';
@@ -130,9 +136,11 @@ export function getFeatureModulesByCategory(): Record<
     admin: [],
   };
 
-  ALL_FEATURE_MODULES.forEach((mod) => {
-    grouped[mod.category].push(mod);
-  });
+  for (const m of ALL_FEATURE_MODULES) {
+    if (m.id !== '*') {
+      grouped[m.category].push(m);
+    }
+  }
 
   return grouped;
 }

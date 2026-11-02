@@ -1,7 +1,7 @@
 // src/components/users/permissions-dialog.tsx
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -54,8 +54,15 @@ export function PermissionsDialog({ user, isOpen, onClose }: PermissionsDialogPr
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  // Initialize or re-sync state when dialog opens or user changes
-  const initialEffectivePermissions = user ? getUserEffectivePermissions(user) : [];
+  // This controlled dialog is opened by its parent, not by a DialogTrigger.
+  // Reload saved permissions on each opening so adding access preserves existing access.
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    const permissions = getUserEffectivePermissions(user);
+    setSelectedRole(user.role || 'telecaller');
+    setSelectedPermissions(permissions.includes('*')
+      ? ALL_FEATURE_MODULES.map(module => module.id) : [...permissions]);
+  }, [isOpen, user]);
 
   const handleOpenChange = (open: boolean) => {
     if (open && user) {

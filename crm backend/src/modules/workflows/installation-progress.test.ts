@@ -5,19 +5,25 @@ import { installationProgressData, installationProgressScope, saveInstallationPr
 const input = { id: 'project-1', stage: 'INSTALLED' as const };
 const fieldUser = { id: 'field-1', role: 'job_orders' };
 
-test('only admins and field operations have an update scope', () => {
+test('admins, managers, and project staff receive the correct update scope', () => {
   assert.deepEqual(installationProgressScope({ id: 'admin-1', role: 'admin' }), {});
-  for (const role of ['manager', 'executive', 'telecaller', 'services', 'accounts', 'custom', null]) {
+  assert.deepEqual(installationProgressScope({ id: 'manager-1', role: 'manager', branch: 'branch-1' }), {
+    OR: [
+      { enquiry: { branchId: 'branch-1' } },
+      { enquiryId: null, createdBy: { branch: 'branch-1' } },
+    ],
+  });
+  for (const role of ['telecaller', 'accounts', 'custom', null]) {
     assert.equal(installationProgressScope({ id: 'other', role }), null);
   }
-  assert.ok(installationProgressScope(fieldUser));
-  assert.ok(installationProgressScope({ ...fieldUser, role: 'joborders' }));
+  assert.deepEqual(installationProgressScope(fieldUser), { assignedToUserId: 'field-1' });
+  assert.deepEqual(installationProgressScope({ id: 'exec-1', role: 'executive' }), { assignedToUserId: 'exec-1' });
+  assert.deepEqual(installationProgressScope({ id: 'svc-1', role: 'services' }), { assignedToUserId: 'svc-1' });
 });
 
-test('all field staff can update any project regardless of assignment', () => {
-  assert.deepEqual(installationProgressScope(fieldUser), {});
-  assert.deepEqual(installationProgressScope({ id: 'field-2', role: 'job_orders' }), {});
-  assert.deepEqual(installationProgressScope({ id: 'legacy-field', role: 'joborders' }), {});
+test('field staff progress updates are scoped to their assigned survey', () => {
+  assert.deepEqual(installationProgressScope({ id: 'field-2', role: 'job_orders' }), { assignedToUserId: 'field-2' });
+  assert.deepEqual(installationProgressScope({ id: 'legacy-field', role: 'joborders' }), { assignedToUserId: 'legacy-field' });
 });
 
 function database(project: { additionalNotes: string | null } | null, count = 1) {
@@ -46,10 +52,10 @@ test('a missing project cannot be written', async () => {
   assert.deepEqual(db.reads[0].where, { id: input.id, ...installationProgressScope(fieldUser) });
 });
 
-test('field staff save progress without assignment filters or changes to documents and financial fields', async () => {
+test('field staff save progress only for assigned surveys without changing documents or financial fields', async () => {
   const db = database({ additionalNotes: JSON.stringify({ documents: { bill: '/bill.pdf' }, notes: 'Keep this' }) });
   await saveInstallationProgress(db.tx, fieldUser, input);
-  assert.deepEqual(db.reads[0].where, { id: input.id });
+  assert.deepEqual(db.reads[0].where, { id: input.id, assignedToUserId: 'field-1' });
   assert.deepEqual(db.writes[0].where, db.reads[0].where);
   assert.deepEqual(Object.keys(db.writes[0].data).sort(), ['additionalNotes', 'status']);
   assert.equal(db.writes[0].data.status, 'COMPLETED');

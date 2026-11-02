@@ -1,5 +1,7 @@
 'use client';
 
+import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
+
 export type InvoiceCustomer = {
   id: string;
   name: string;
@@ -30,8 +32,8 @@ export type CreateInvoiceInput = {
   notes?: string;
   taxRate: number;
   discountAmount: number;
-  withholdingAmount: number;
-  withholdingType: 'TDS' | 'TCS';
+  withholdingAmount?: number;
+  withholdingType?: 'TDS' | 'TCS' | null;
   serviceCharge: number;
   otherCharges: number;
   status: 'DRAFT' | 'SENT';
@@ -58,7 +60,7 @@ async function invoiceApiRequest<T>(path: string, init: RequestInit = {}): Promi
   const token = localStorage.getItem('token');
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');
 
-  const response = await fetch(`${apiBaseUrl()}${path}`, {
+  const response = await authenticatedFetch(`${apiBaseUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -111,7 +113,7 @@ export async function fetchInvoicesPage(query: { page: number; limit: number; se
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');
   const params = new URLSearchParams({ page: String(query.page), limit: String(query.limit) });
   if (query.search) params.set('search', query.search);
-  const response = await fetch(`${apiBaseUrl()}/invoices?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+  const response = await authenticatedFetch(`${apiBaseUrl()}/invoices?${params}`, { headers: { Authorization: `Bearer ${token}` } });
   return await response.json() as ApiEnvelope<Array<Record<string, unknown>>>;
 }
 
@@ -185,7 +187,7 @@ export async function fetchInvoicePdf(id: string, publicToken?: string) {
     if (!token) throw new Error('Your session has expired. Sign in again to continue.');
     headers.Authorization = `Bearer ${token}`;
   }
-  const response = await fetch(`${apiBaseUrl()}${path}`, { headers });
+  const response = await (publicToken ? fetch : authenticatedFetch)(`${apiBaseUrl()}${path}`, { headers });
   if (!response.ok) throw new Error('Could not generate invoice PDF.');
   return response.blob();
 }

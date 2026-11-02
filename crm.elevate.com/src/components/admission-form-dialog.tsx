@@ -68,6 +68,7 @@ import { EnquirySource } from "@/types/api-models";
 import { AdmissionWithRelations, AdmissionGender } from "@/types/admission";
 import {
   createAdmission,
+  getSurveyAssignees,
   updateAdmission,
 } from "@/server/actions/admission-actions";
 import { uploadDocumentFile } from "@/server/actions/upload-actions";
@@ -203,6 +204,7 @@ const admissionFormSchema = z.object({
     .optional(),
   agentName: z.string().optional(),
   agentCommission: z.number().min(0).optional(),
+  assignedToUserId: z.string().optional(),
   dateOfBirth: z.date().optional(),
   address: z
     .string()
@@ -241,6 +243,8 @@ export function AdmissionFormDialog({
   const [internalOpen, setInternalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [roleMatch, setRoleMatch] = useState(false);
+  const [surveyAssignees, setSurveyAssignees] = useState<{ id: string; name: string }[]>([]);
+  const [loadingAssignees, setLoadingAssignees] = useState(false);
 
   // Document upload & residence states
   const [residenceType, setResidenceType] = useState<"independent" | "flat" | "commercial">("independent");
@@ -280,6 +284,25 @@ export function AdmissionFormDialog({
       setCurrentStep(0);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || mode !== "create") return;
+    let active = true;
+    setLoadingAssignees(true);
+    getSurveyAssignees()
+      .then((result) => {
+        if (!active) return;
+        if (result.data?.success) setSurveyAssignees(result.data.data);
+        else toast.error(result.serverError || "Could not load survey assignees");
+      })
+      .catch(() => {
+        if (active) toast.error("Could not load survey assignees");
+      })
+      .finally(() => {
+        if (active) setLoadingAssignees(false);
+      });
+    return () => { active = false; };
+  }, [isOpen, mode]);
 
   const totalSteps = 4;
   const stepTitles = [
@@ -341,6 +364,7 @@ export function AdmissionFormDialog({
         : new Date(),
       agentName: admission?.agentName || "",
       agentCommission: admission?.agentCommission || 0,
+      assignedToUserId: admission?.assignedToUserId || "",
     },
     mode: "onChange",
   });
@@ -457,6 +481,7 @@ export function AdmissionFormDialog({
         createdAt: new Date(),
         agentName: "",
         agentCommission: 0,
+        assignedToUserId: "",
       });
     }
   }, [enquiryData, isOpen, form]);
@@ -522,10 +547,16 @@ export function AdmissionFormDialog({
       ],
       1: [], // Document upload step is non-blocking
       2: ["courseId"],
+      3: mode === "create" ? ["assignedToUserId"] : [],
     };
 
     const fields = fieldsToValidate[stepIndex];
     if (!fields || fields.length === 0) return true;
+
+    if (stepIndex === 3 && mode === "create" && !form.getValues("assignedToUserId")) {
+      form.setError("assignedToUserId", { message: "Please select a staff member" });
+      return false;
+    }
 
     const result = await form.trigger(fields);
     return result;
@@ -577,6 +608,11 @@ export function AdmissionFormDialog({
 
   // Form submission
   const onSubmit = async (data: AdmissionFormValues) => {
+    if (mode === "create" && !data.assignedToUserId) {
+      form.setError("assignedToUserId", { message: "Please select a staff member" });
+      setCurrentStep(3);
+      return;
+    }
     if (!isCommissionValid()) {
       toast.error("Agent discount should be less than or equal to total price.");
       return;
@@ -619,6 +655,7 @@ export function AdmissionFormDialog({
         createdAt?: Date;
         agentName?: string;
         agentCommission?: number;
+        assignedToUserId: string;
         enquiryId?: string;
       } = {
         candidateName: data.candidateName,
@@ -637,6 +674,7 @@ export function AdmissionFormDialog({
         createdAt: data.createdAt || new Date(),
         agentName: undefined,
         agentCommission: undefined,
+        assignedToUserId: data.assignedToUserId || "",
         enquiryId: enquiryData?.id || undefined,
       };
 
@@ -1453,6 +1491,34 @@ export function AdmissionFormDialog({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 space-y-4">
+                    {mode === "create" && (
+                      <FormField
+                        control={form.control}
+                        name="assignedToUserId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">Assign survey to staff member *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={loadingAssignees}>
+                              <FormControl>
+                                <SelectTrigger className="h-9 w-full text-xs">
+                                  <SelectValue placeholder={loadingAssignees ? "Loading staff…" : "Select an assignee"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {surveyAssignees.map((assignee) => (
+                                  <SelectItem key={assignee.id} value={assignee.id}>{assignee.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!loadingAssignees && surveyAssignees.length === 0 && (
+                              <p className="text-xs text-destructive">No eligible staff with Site Surveys & Projects permission were found.</p>
+                            )}
+                            <FormMessage className="text-xs" />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
                     {/* Customer Review */}
                     <div>
                       <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">

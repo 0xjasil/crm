@@ -32,6 +32,7 @@ const createAdmissionSchema = z.object({
   instituteName: z.string().optional(),
   additionalNotes: z.string().optional(),
   courseId: z.string().min(1, "Course selection is required"),
+  assignedToUserId: z.string().min(1, "Please assign this survey to a staff member"),
   agentName: z.string().optional(),
   agentCommission: z.number().min(0).optional(),
   enquiryId: z.string().optional(),
@@ -109,6 +110,17 @@ export const deleteAdmission = adminActionClient
     return backendPost<{ success: boolean; message: string; }>('/workflows/admission-actions/deleteAdmission', { input: parsedInput ?? {} });
   });
 
+const reassignAdmissionSchema = z.object({
+  id: z.string().min(1),
+  assignedToUserId: z.string().min(1),
+});
+
+export const reassignAdmission = authActionClient
+  .schema(reassignAdmissionSchema)
+  .action(async ({ parsedInput }) => {
+    return backendPost<{ success: boolean; message: string }>('/workflows/admission-actions/reassignAdmission', { input: parsedInput });
+  });
+
 const ADMISSION_SORT_FIELDS = [
   "createdAt",
   "candidateName",
@@ -135,6 +147,10 @@ export const getAdmissionsByEnquiry = actionClient
   .action(async ({ parsedInput }) => {
     return backendPost<GetAdmissionsByEnquiryResponse>('/workflows/admission-actions/getAdmissionsByEnquiry', { input: parsedInput ?? {} });
   });
+
+export const getSurveyAssignees = actionClient.action(async () => {
+  return backendPost<{ success: boolean; data: { id: string; name: string; role: string | null; branch: string | null }[] }>('/workflows/admission-actions/getSurveyAssignees', {});
+});
 
 export const getEnquirySourcesForAdmission = actionClient.action(async ({ parsedInput }) => {
     return backendPost<{ success: boolean; data: { name: string; id: string; createdAt: Date; updatedAt: Date; isActive: boolean; }[]; }>('/workflows/admission-actions/getEnquirySourcesForAdmission', { input: parsedInput ?? {} });

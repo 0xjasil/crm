@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 
 export interface UserSessionData {
   id: string;
@@ -85,7 +86,7 @@ export const authClient = {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const res = await fetch(`${apiUrl}/users/change-password`, {
+      const res = await authenticatedFetch(`${apiUrl}/users/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

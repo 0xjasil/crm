@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import { getLogoutReason, sessionLogoutUrl } from '../src/lib/session-logout';
 import { ApiError, parseApiError } from '../src/lib/api/errors';
 
 interface ClientOptions {
@@ -21,6 +22,8 @@ function loadClient(options: ClientOptions): {
   const exports = {};
   const dependencies: Record<string, unknown> = {
     'server-only': {},
+    'next/navigation': { redirect: (url: string) => { throw new Error('REDIRECT:' + url); } },
+    '@/lib/session-logout': { getLogoutReason, sessionLogoutUrl },
     'next/headers': {
       cookies: async () => ({ get: () => options.token ? { value: options.token } : undefined }),
       headers: async () => new Headers(options.authorization ? { authorization: options.authorization } : {}),
@@ -65,14 +68,14 @@ test('API client preserves incoming authorization precedence and structured erro
     authorization: 'Bearer incoming-token',
     fetch: async (_url, init) => {
       assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer incoming-token');
-      return Response.json({ error: { code: 'FORBIDDEN', message: 'Access denied' } }, { status: 403 });
+      return Response.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid filter' } }, { status: 422 });
     },
   });
   await assert.rejects(client.apiFetch('/enquiries'), (error: unknown) => {
     assert.ok(error instanceof ApiError);
-    assert.equal(error.statusCode, 403);
-    assert.equal(error.code, 'FORBIDDEN');
-    assert.equal(error.message, 'Access denied');
+    assert.equal(error.statusCode, 422);
+    assert.equal(error.code, 'VALIDATION_ERROR');
+    assert.equal(error.message, 'Invalid filter');
     return true;
   });
 });
@@ -88,4 +91,18 @@ test('API client handles non-JSON errors and anonymous requests', async () => {
   assert.equal(parseApiError({ message: 'Legacy failure' }, 400).message, 'Legacy failure');
   assert.equal(parseApiError({ error: { message: 'Session expired' } }, 401).message, 'Session expired');
   assert.equal(parseApiError({ error: { message: { invalid: true } } }, 500).message, 'API request failed (500)');
+});
+
+test('authenticated API failures redirect through logout while login errors stay on the form', async () => {
+  for (const status of [401, 403]) {
+    const client = loadClient({ token: 'token', fetch: async () => new Response(null, { status }) });
+    await assert.rejects(client.apiFetch('/workflows/dashboard/getDashboardData'), {
+      message: 'REDIRECT:' + sessionLogoutUrl(getLogoutReason(status)!),
+    });
+    await assert.rejects(client.apiFetch('/auth/login'), (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.statusCode, status);
+      return true;
+    });
+  }
 });

@@ -206,6 +206,7 @@ export interface Admission {
   agentCommission: number | null;
   createdByUserId: string;
   handledByUserId: string | null;
+  assignedToUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

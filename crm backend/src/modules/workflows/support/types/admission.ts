@@ -56,6 +56,7 @@ export interface AdmissionCreateData {
   status: AdmissionStatus;
   createdAt: Date;
   handledBy?: { connect: { id: string } };
+  assignedTo: { connect: { id: string } };
   course: {
     connect: { id: string };
   };

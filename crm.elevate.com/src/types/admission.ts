@@ -15,6 +15,7 @@ export interface AdmissionWithRelations extends Admission {
   course: Course;
   enquiry?: Enquiry | null;
   createdBy: User;
+  assignedTo?: Pick<User, 'id' | 'name'> | null;
 }
 
 // Form data types

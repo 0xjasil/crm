@@ -7,6 +7,7 @@ export interface UserPayload {
   name: string;
   role: string | null;
   branch: string | null;
+  permissions?: string[];
 }
 
 declare module '@fastify/jwt' {

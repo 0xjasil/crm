@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { redirect, unstable_rethrow } from 'next/navigation';
 import { getDashboardData } from '@/lib/actions/dashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { backendRequest } from '@/lib/api/backend-server';
@@ -29,7 +29,8 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 import { KpiCard } from '@/components/dashboard/kpi-card';
-import { getPositionDefinition, hasFeatureAccess } from '@/lib/permissions';
+import { getFirstPermittedPath, getPositionDefinition, hasFeatureAccess } from '@/lib/permissions';
+import { sessionLogoutUrl } from '@/lib/session-logout';
 import { IconBriefcase, IconFileInvoice, IconFileDollar } from '@tabler/icons-react';
 
 export default async function Dashboard() {
@@ -39,11 +40,19 @@ export default async function Dashboard() {
       headers: await headers(),
     });
   } catch (err) {
+    unstable_rethrow(err);
     console.error('Dashboard session error:', err);
   }
 
   if (!session) {
     redirect('/login');
+  }
+
+  // Login can land here even when a user's custom role excludes Dashboard.
+  // Avoid requesting a forbidden dashboard when another feature is available.
+  if (!hasFeatureAccess(session.user, 'dashboard')) {
+    const permittedPath = getFirstPermittedPath(session.user);
+    redirect(permittedPath === '/dashboard' ? sessionLogoutUrl('access-denied') : permittedPath);
   }
 
   // Get branch name if user is executive
@@ -53,6 +62,7 @@ export default async function Dashboard() {
       const branch = await backendRequest<{ name: string } | null>('/ui/my-branch')
       branchName = branch?.name;
     } catch (e) {
+      unstable_rethrow(e);
       console.warn('Dashboard branch fetch warning:', e);
     }
   }
@@ -95,6 +105,7 @@ export default async function Dashboard() {
   const followUpKpis = [
     { title: 'Overdue Follow-ups', value: followUpStats.overdueCount, indicatorColor: 'rose' as const, description: 'Past scheduled interaction window requiring urgent attention.', href: '/follow-ups?filter=overdue' },
     { title: "Today's Follow-ups", value: followUpStats.todayCount, indicatorColor: 'amber' as const, description: 'Scheduled calls and customer follow-ups queued for today.', href: '/follow-ups?filter=today' },
+    { title: 'Follow-ups Due Today', value: followUpStats.todayCount, indicatorColor: 'blue' as const, description: 'Pending follow-ups scheduled for today.', href: '/follow-ups?filter=today' },
     { title: 'Interested Leads', value: followUpStats.interestedLeadsCount, indicatorColor: 'emerald' as const, description: 'High-intent prospects expressing strong interest in services.', href: '/enquiries?status=INTERESTED' },
   ];
 
@@ -184,7 +195,7 @@ export default async function Dashboard() {
       </div>
 
       {/* Follow-up Priority Queues */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {followUpKpis.map((kpi) => (
           <KpiCard key={kpi.title} {...kpi} />
         ))}

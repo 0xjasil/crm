@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { SESSION_MESSAGES } from '@/lib/session-logout';
+import { PermissionCheckLoader } from '@/components/auth/permission-check-loader';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -22,10 +24,20 @@ import type { LoginData } from '@/types/auth';
 
 type LoginFormData = LoginData;
 
-export function LoginForm() {
+export function LoginForm({ logoutReason }: { logoutReason?: string }) {
+  const logoutMessage = logoutReason === 'access-denied' || logoutReason === 'session-expired'
+    ? SESSION_MESSAGES[logoutReason] : null;
+
+  useEffect(() => {
+    if (!logoutMessage) return;
+    // The route handler clears cookies, including HttpOnly authentication cookies.
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }, [logoutMessage]);
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingPermissions, setIsCheckingPermissions] = useState(false);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -37,6 +49,7 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    setIsCheckingPermissions(false);
     setErrorMessage(null);
     try {
       const res = await fetch('/api/v1/auth/login', {
@@ -70,12 +83,17 @@ export function LoginForm() {
         document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=604800; SameSite=Lax`;
       }
 
-      window.location.href = '/dashboard';
+      setIsCheckingPermissions(true);
+      router.replace('/dashboard');
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred connecting to backend');
       setIsLoading(false);
     }
   };
+
+  if (isLoading) {
+    return <PermissionCheckLoader message={isCheckingPermissions ? 'Checking your access…' : 'Signing you in…'} />;
+  }
 
   return (
     <Card className="w-full max-w-md">
@@ -86,6 +104,11 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {logoutMessage && (
+          <div role="alert" className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            {logoutMessage}
+          </div>
+        )}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField

@@ -2,7 +2,6 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import {
-  IconChevronRight,
   IconArrowUpRight,
   IconArrowDownRight,
 } from "@tabler/icons-react";
@@ -117,87 +116,102 @@ export function KpiCard({
   className,
 }: KpiCardProps) {
   const colorClass = getIndicatorColorClass(indicatorColor, title);
+  const isInteractive = Boolean(href || onClick);
+  const valueLength = String(value).length;
+  const cardClassName = cn(
+    "group relative flex h-full min-h-[160px] w-full min-w-0 flex-col justify-between gap-5 rounded-xl border border-border/80 bg-card p-5 text-left text-card-foreground shadow-xs sm:p-6",
+    isInteractive &&
+      "cursor-pointer transition-[transform,box-shadow,border-color] duration-200 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none",
+    className,
+  );
 
   const cardContent = (
-    <div
-      onClick={onClick}
-      className={cn(
-        "group relative flex flex-col justify-between rounded-2xl bg-card border border-border/70 p-5 sm:p-6 shadow-xs transition-all duration-200 text-card-foreground",
-        (href || onClick) &&
-          "cursor-pointer hover:shadow-md hover:border-border hover:-translate-y-0.5",
-        className,
-      )}
-    >
-      {/* Top Header: Vertical color pill + Title on left, optional icon & Chevron on right */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
+    <>
+      <span className="flex w-full min-w-0 items-start justify-between gap-3">
+        <span className="flex min-w-0 items-end gap-2">
           <span
-            className={cn("w-1.5 h-4.5 rounded-full shrink-0", colorClass)}
-            aria-hidden="true"
-          />
-          <span className="text-sm sm:text-[15px] font-medium text-foreground tracking-tight truncate">
-            {title}
+            className={cn(
+              "block font-semibold leading-none tracking-tight tabular-nums [overflow-wrap:anywhere]",
+              valueLength > 12
+                ? "text-xl sm:text-2xl"
+                : valueLength > 8
+                  ? "text-2xl sm:text-3xl"
+                  : "text-3xl sm:text-4xl",
+            )}
+          >
+            {value}
           </span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/60">
+          {trend && (
+            <span
+              className={cn(
+                "mb-0.5 flex flex-wrap items-center text-xs font-medium",
+                trend.isPositive !== false
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400",
+              )}
+            >
+              {trend.isPositive !== false ? (
+                <IconArrowUpRight aria-hidden="true" className="size-3.5 shrink-0" />
+              ) : (
+                <IconArrowDownRight aria-hidden="true" className="size-3.5 shrink-0" />
+              )}
+              <span className="[overflow-wrap:anywhere]">{trend.value}</span>
+              {trend.label && (
+                <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                  {trend.label}
+                </span>
+              )}
+            </span>
+          )}
+        </span>
+        {isInteractive && showChevron && (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "flex size-8 shrink-0 items-center justify-center rounded-lg text-white transition-transform group-hover:scale-105 sm:size-8",
+              colorClass,
+            )}
+          >
+            <IconArrowUpRight className="size-4" />
+          </span>
+        )}
+      </span>
+
+      <span className="block w-full min-w-0">
+        <span className="flex items-start gap-2 text-sm font-semibold leading-snug sm:text-base">
           {icon && (
-            <span className="transition-colors group-hover:text-foreground">
+            <span aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground [&>svg]:size-4">
               {icon}
             </span>
           )}
-          {showChevron && (
-            <IconChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-          )}
-        </div>
-      </div>
-
-      {/* Value & Inline Trend Section */}
-      <div className="flex items-baseline gap-2.5 mt-4">
-        <span className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-          {value}
+          <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
         </span>
-        {trend && (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 text-sm sm:text-base font-semibold",
-              trend.isPositive !== false
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-rose-600 dark:text-rose-400",
-            )}
-          >
-            {trend.isPositive !== false ? (
-              <IconArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-            ) : (
-              <IconArrowDownRight className="w-4 h-4 stroke-[2.5]" />
-            )}
-            <span>{trend.value}</span>
-            {trend.label && (
-              <span className="text-xs font-normal text-muted-foreground ml-0.5">
-                {trend.label}
-              </span>
-            )}
+        {description && (
+          <span className="mt-1.5 block text-xs font-normal leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+            {description}
           </span>
         )}
-      </div>
-
-      {/* Description Text */}
-      {description && (
-        <p className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed mt-2.5">
-          {description}
-        </p>
-      )}
-    </div>
+      </span>
+    </>
   );
 
   if (href) {
     return (
-      <Link href={href} className="block focus:outline-hidden">
+      <Link href={href} onClick={onClick} className={cardClassName}>
         {cardContent}
       </Link>
     );
   }
 
-  return cardContent;
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cardClassName}>
+        {cardContent}
+      </button>
+    );
+  }
+
+  return <div className={cardClassName}>{cardContent}</div>;
 }
 
 export default KpiCard;

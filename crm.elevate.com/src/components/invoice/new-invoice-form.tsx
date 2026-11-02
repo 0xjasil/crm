@@ -22,11 +22,11 @@ import { PaymentNumberSettingsDialog } from '@/components/invoice/invoice-paymen
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 
 type Customer = InvoiceCustomer;
-type InvoiceItem = { id: number; description: string; quantity: number; rate: number; discount: number; tax: number };
+type InvoiceItem = { id: number; description: string; quantity: number; rate: number; discount: number; rateLocked?: boolean };
 
 const terms = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Due end of month', 'Due end of next month', 'Custom'];
 const currency = (amount: number) => `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const blankItem = (id: number): InvoiceItem => ({ id, description: '', quantity: 1, rate: 0, discount: 0, tax: 0 });
+const blankItem = (id: number): InvoiceItem => ({ id, description: '', quantity: 1, rate: 0, discount: 0 });
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return <section className="overflow-hidden rounded-lg border bg-card">
@@ -59,33 +59,31 @@ function CustomerSelect({ value, onChange, customers, loading, onNew }: { value:
 
 function InvoiceItemRow({ item, catalog, onChange, onRemove, onEnter }: { item: InvoiceItem; catalog: InvoiceProductItem[]; onChange: (item: InvoiceItem) => void; onRemove: () => void; onEnter: () => void }) {
   const amount = item.quantity * item.rate * (1 - item.discount / 100);
-  const capacities = useMemo(() => catalog.filter((c) => c.category === 'capacity'), [catalog]);
+  const capacities = useMemo(() => catalog.filter((c) => c.category === 'capacity' && !c.id.startsWith('course-full-')), [catalog]);
   const proposals = useMemo(() => catalog.filter((c) => c.category === 'proposal'), [catalog]);
   const otherItems = useMemo(() => catalog.filter((c) => c.category !== 'capacity' && c.category !== 'proposal'), [catalog]);
 
   return <tr className="border-b last:border-0">
-    <td className="min-w-[300px] px-3 py-2"><div className="flex items-start gap-2"><GripVertical className="mt-2 size-4 shrink-0 text-muted-foreground/50" /><div className="flex size-10 shrink-0 items-center justify-center rounded border bg-muted/30 text-muted-foreground"><FileText className="size-4" /></div><div className="min-w-0 flex-1 space-y-1"><select aria-label="Required capacity or product item" value="" onChange={(e) => { const entry = catalog.find((candidate) => candidate.id === e.target.value); if (entry) onChange({ ...item, description: entry.description || entry.name, rate: entry.price, ...(entry.quantity && entry.quantity > 0 ? { quantity: entry.quantity } : {}) }); }} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="">{catalog.length ? '⚡ Choose Required Capacity or Item (optional)' : 'Enter a custom item'}</option>{capacities.length > 0 && <optgroup label="⚡ Required Capacities (Admin Data Management)">{capacities.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}{proposals.length > 0 && <optgroup label="📄 Proposal Line Items (from Enquiries)">{proposals.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}{otherItems.length > 0 && <optgroup label="📦 Other Catalog Items">{otherItems.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}</select><Textarea value={item.description} onChange={(e) => onChange({ ...item, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEnter(); } }} placeholder="Required solar capacity package, specifications, or proposal item" className="min-h-12 resize-y text-xs" /></div></div></td>
+    <td className="min-w-[300px] px-3 py-2"><div className="flex items-start gap-2"><GripVertical className="mt-2 size-4 shrink-0 text-muted-foreground/50" /><div className="flex size-10 shrink-0 items-center justify-center rounded border bg-muted/30 text-muted-foreground"><FileText className="size-4" /></div><div className="min-w-0 flex-1 space-y-1"><select aria-label="Required capacity or product item" value="" onChange={(e) => { const entry = catalog.find((candidate) => candidate.id === e.target.value); if (entry) onChange({ ...item, description: entry.description || entry.name, rate: entry.price, rateLocked: entry.category === 'capacity', ...(entry.quantity && entry.quantity > 0 ? { quantity: entry.quantity } : {}) }); }} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="">{catalog.length ? '⚡ Choose Required Capacity or Item (optional)' : 'Enter a custom item'}</option>{capacities.length > 0 && <optgroup label="⚡ Required Capacities (Admin Data Management)">{capacities.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}{proposals.length > 0 && <optgroup label="📄 Proposal Line Items (from Enquiries)">{proposals.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}{otherItems.length > 0 && <optgroup label="📦 Other Catalog Items">{otherItems.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}</select><Textarea value={item.description} onChange={(e) => onChange({ ...item, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEnter(); } }} placeholder="Required solar capacity package, specifications, or proposal item" className="min-h-12 resize-y text-xs" /></div></div></td>
     <td className="min-w-24 px-2"><Input aria-label="Quantity" type="number" min="1" step="1" value={item.quantity} onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) })} className="h-9 text-right" /></td>
-    <td className="min-w-28 px-2"><div className="relative"><span className="absolute left-2.5 top-2 text-sm text-muted-foreground">₹</span><Input aria-label="Rate" type="number" min="0" step="0.01" value={item.rate || ''} onChange={(e) => onChange({ ...item, rate: Number(e.target.value) })} className="h-9 pl-6 text-right" /></div></td>
+    <td className="min-w-28 px-2"><div className="relative"><span className="absolute left-2.5 top-2 text-sm text-muted-foreground">₹</span><Input aria-label="Rate" type="number" min="0" step="0.01" value={item.rate || ''} onChange={(e) => onChange({ ...item, rate: Number(e.target.value) })} disabled={item.rateLocked} className="h-9 pl-6 text-right" /></div></td>
     <td className="min-w-24 px-2"><div className="relative"><Input aria-label="Discount percentage" type="number" min="0" max="100" value={item.discount || ''} onChange={(e) => onChange({ ...item, discount: Number(e.target.value) })} className="h-9 pr-7 text-right" /><span className="absolute right-2.5 top-2 text-xs text-muted-foreground">%</span></div></td>
-    <td className="min-w-28 px-2"><div className="relative"><Input aria-label="Tax rate percentage" type="number" min="0" max="100" step="0.01" value={item.tax || ''} onChange={(e) => onChange({ ...item, tax: Number(e.target.value) })} className="h-9 pr-7 text-right" placeholder="0" /><span className="absolute right-2.5 top-2 text-xs text-muted-foreground">%</span></div></td>
     <td className="min-w-28 px-3 text-right text-sm font-medium tabular-nums">{currency(amount)}</td><td className="px-2"><Button type="button" size="icon" variant="ghost" aria-label="Remove item" onClick={onRemove} className="size-8 text-muted-foreground"><X className="size-4" /></Button></td>
   </tr>;
 }
 
-function TotalsPanel({ subtotal, taxAmount, discount, setDiscount, discountMode, setDiscountMode, shipping, setShipping, adjustment, setAdjustment, total, withholding, setWithholding, withholdingRate, setWithholdingRate }: { subtotal: number; taxAmount: number; discount: number; setDiscount: (value: number) => void; discountMode: 'percent' | 'amount'; setDiscountMode: (value: 'percent' | 'amount') => void; shipping: number; setShipping: (value: number) => void; adjustment: number; setAdjustment: (value: number) => void; total: number; withholding: 'TDS' | 'TCS'; setWithholding: (value: 'TDS' | 'TCS') => void; withholdingRate: number; setWithholdingRate: (value: number) => void }) {
-  const discountValue = discountMode === 'percent' ? subtotal * discount / 100 : discount;
-  const withholdingValue = Math.max(0, subtotal - discountValue) * withholdingRate / 100;
+function TotalsPanel({ subtotal, taxPercent, setTaxPercent, taxAmount, discount, setDiscount, discountMode, setDiscountMode, shipping, setShipping, adjustment, setAdjustment, total, amountReceived, balanceDue }: { subtotal: number; taxPercent: number; setTaxPercent: (value: number) => void; taxAmount: number; discount: number; setDiscount: (value: number) => void; discountMode: 'percent' | 'amount'; setDiscountMode: (value: 'percent' | 'amount') => void; shipping: number; setShipping: (value: number) => void; adjustment: number; setAdjustment: (value: number) => void; total: number; amountReceived: number; balanceDue: number }) {
   return <div className="ml-auto max-w-md rounded-lg border bg-muted/20 p-5">
     <div className="space-y-3 text-sm">
       <div className="flex justify-between"><span className="text-muted-foreground">Sub Total</span><span className="tabular-nums">{currency(subtotal)}</span></div>
-      <div className="flex justify-between text-xs text-muted-foreground"><span>Tax</span><span>{currency(taxAmount)}</span></div>
       <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Discount</span><div className="flex w-40"><Input aria-label="Discount" type="number" value={discount || ''} onChange={(e) => setDiscount(Number(e.target.value))} className="h-8 rounded-r-none text-right" /><button type="button" className="rounded-r-md border border-l-0 bg-background px-2 text-xs" onClick={() => setDiscountMode(discountMode === 'percent' ? 'amount' : 'percent')}>{discountMode === 'percent' ? '%' : '₹'}</button></div></div>
+      <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Tax ({taxPercent.toFixed(2)}%)</span><div className="flex w-40 items-center gap-2"><Input aria-label="Invoice tax percentage" type="number" min="0" max="100" step="0.01" value={taxPercent} onChange={(e) => setTaxPercent(Math.min(100, Math.max(0, Number(e.target.value))))} className="h-8 pr-7 text-right" /><span className="-ml-8 text-xs text-muted-foreground">%</span><span className="min-w-24 text-right tabular-nums">{currency(taxAmount)}</span></div></div>
       <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-1 text-muted-foreground">Shipping Charges <Info className="size-3.5" /></span><Input aria-label="Shipping charges" type="number" value={shipping || ''} onChange={(e) => setShipping(Number(e.target.value))} className="h-8 w-40 text-right" /></div>
       <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Other Charges</span><Input aria-label="Other charges" type="number" value={adjustment || ''} onChange={(e) => setAdjustment(Number(e.target.value))} className="h-8 w-40 text-right" /></div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3"><div className="flex items-center gap-3 text-xs"><label className="flex items-center gap-1.5"><input type="radio" checked={withholding === 'TDS'} onChange={() => setWithholding('TDS')} />TDS</label><label className="flex items-center gap-1.5"><input type="radio" checked={withholding === 'TCS'} onChange={() => setWithholding('TCS')} />TCS</label><select aria-label="TDS or TCS rate" value={withholdingRate} onChange={(event) => setWithholdingRate(Number(event.target.value))} className="h-8 rounded-md border border-input bg-background px-2"><option value={0}>Select tax</option><option value={1}>1%</option><option value={2}>2%</option><option value={5}>5%</option><option value={10}>10%</option></select></div><span className="text-xs text-muted-foreground">−{currency(withholdingValue)}</span></div>
-      <div className="flex items-center justify-between"><span className="font-semibold">Total</span><span className="text-xl font-semibold tabular-nums">{currency(Math.max(0, total - discountValue - withholdingValue))}</span></div>
-      <p className="text-right text-[11px] text-muted-foreground">{currency(Math.max(0, total - discountValue - withholdingValue))} INR</p>
+      <div className="flex items-center justify-between border-t pt-3"><span className="font-semibold">Total</span><span className="text-xl font-semibold tabular-nums">{currency(total)}</span></div>
+      <div className="flex items-center justify-between text-xs"><span className="text-muted-foreground">Amount Received</span><span className="tabular-nums">{currency(amountReceived)}</span></div>
+      <div className="flex items-center justify-between font-medium"><span>Balance Due</span><span className="tabular-nums">{currency(balanceDue)}</span></div>
+      <p className="text-right text-[11px] text-muted-foreground">{currency(total)} INR</p>
     </div>
   </div>;
 }
@@ -119,8 +117,7 @@ export function NewInvoiceForm() {
   const [nextId, setNextId] = useState(2);
   const [discount, setDiscount] = useState(0);
   const [discountMode, setDiscountMode] = useState<'percent' | 'amount'>('percent');
-  const [withholding, setWithholding] = useState<'TDS' | 'TCS'>('TDS');
-  const [withholdingRate, setWithholdingRate] = useState(0);
+  const [taxPercent, setTaxPercent] = useState(0);
   const [shipping, setShipping] = useState(0);
   const [adjustment, setAdjustment] = useState(0);
   const [gstin, setGstin] = useState('');
@@ -135,11 +132,10 @@ export function NewInvoiceForm() {
   const [invoiceTerms, setInvoiceTerms] = useState('');
   const [numberMode, setNumberMode] = useState<'auto' | 'manual'>('auto');
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.quantity * item.rate * (1 - item.discount / 100), 0), [items]);
-  const taxAmount = useMemo(() => items.reduce((sum, item) => sum + item.quantity * item.rate * (1 - item.discount / 100) * item.tax / 100, 0), [items]);
-  const total = subtotal + taxAmount + shipping + adjustment;
   const discountAmount = Math.min(subtotal, discountMode === 'percent' ? subtotal * discount / 100 : discount);
-  const withholdingAmount = Math.min(Math.max(0, subtotal - discountAmount), Math.max(0, subtotal - discountAmount) * withholdingRate / 100);
-  const payableTotal = Math.max(0, total - discountAmount - withholdingAmount);
+  const taxableSubtotal = Math.max(0, subtotal - discountAmount);
+  const taxAmount = taxableSubtotal * taxPercent / 100;
+  const payableTotal = taxableSubtotal + taxAmount + shipping + adjustment;
   const hasDescription = items.some((item) => item.description.trim() && Number.isInteger(item.quantity) && item.quantity > 0);
   useEffect(() => {
     let active = true;
@@ -180,68 +176,31 @@ export function NewInvoiceForm() {
     return () => { active = false; };
   }, [customer]);
 
-  const handleSelectCapacity = (cap: RequiredCapacity, mode: 'full' | 'split') => {
-    if (mode === 'split' && cap.admissionFee > 0 && cap.courseFee > 0) {
-      const brandStr = cap.brand ? ` (${cap.brand})` : '';
-      const emptyRowIndex = items.findIndex((it) => !it.description.trim());
-      const item1: InvoiceItem = {
-        id: emptyRowIndex !== -1 ? items[emptyRowIndex].id : nextId,
-        description: `${cap.name} On-Grid Solar System${brandStr} with Tier-1 Panels`,
-        quantity: 1,
-        rate: cap.courseFee,
-        discount: 0,
-        tax: 0,
-      };
-      const item2: InvoiceItem = {
-        id: emptyRowIndex !== -1 ? nextId : nextId + 1,
-        description: `${cap.name} KSEB Net Metering, Feasibility & Testing Fee`,
-        quantity: 1,
-        rate: cap.admissionFee,
-        discount: 0,
-        tax: 0,
-      };
-
-      if (emptyRowIndex !== -1) {
-        setItems((current) => [
-          ...current.slice(0, emptyRowIndex),
-          item1,
-          ...current.slice(emptyRowIndex + 1),
-          item2,
-        ]);
-        setNextId((id) => id + 2);
-      } else {
-        setItems((current) => [...current, item1, item2]);
-        setNextId((id) => id + 2);
-      }
-      toast.success(`Added ${cap.name} System Price and KSEB Fee line items.`);
-    } else {
-      const grandTotal = cap.grandTotal || cap.courseFee + cap.admissionFee;
-      const brandStr = cap.brand ? ` (${cap.brand})` : '';
-      const desc =
-        cap.description ||
-        `${cap.name} On-Grid Solar System${brandStr}. KSEB Fee: ₹${cap.admissionFee.toLocaleString('en-IN')}. Grand Total: ₹${grandTotal.toLocaleString('en-IN')}.`;
-      const emptyRowIndex = items.findIndex((it) => !it.description.trim());
-      const newItem: InvoiceItem = {
-        id: emptyRowIndex !== -1 ? items[emptyRowIndex].id : nextId,
-        description: desc,
-        quantity: 1,
-        rate: grandTotal,
-        discount: 0,
-        tax: 0,
-      };
-
-      if (emptyRowIndex !== -1) {
-        setItems((current) => [
-          ...current.slice(0, emptyRowIndex),
-          newItem,
-          ...current.slice(emptyRowIndex + 1),
-        ]);
-      } else {
-        setItems((current) => [...current, newItem]);
-        setNextId((id) => id + 1);
-      }
-      toast.success(`Added ${cap.name} Solar System Full Package to invoice.`);
-    }
+  const handleSelectCapacity = (cap: RequiredCapacity) => {
+    const brandStr = cap.brand ? ` (${cap.brand})` : '';
+    const emptyRowIndex = items.findIndex((it) => !it.description.trim());
+    const system: InvoiceItem = {
+      id: emptyRowIndex !== -1 ? items[emptyRowIndex].id : nextId,
+      description: `${cap.name} On-Grid Solar System${brandStr} with Tier-1 Panels`,
+      quantity: 1,
+      rate: cap.courseFee,
+      discount: 0,
+      rateLocked: true,
+    };
+    const added: InvoiceItem[] = [system];
+    if (cap.admissionFee > 0) added.push({
+      id: emptyRowIndex !== -1 ? nextId : nextId + 1,
+      description: `${cap.name} KSEB Net Metering, Feasibility & Testing Fee`,
+      quantity: 1,
+      rate: cap.admissionFee,
+      discount: 0,
+      rateLocked: true,
+    });
+    setItems((current) => emptyRowIndex !== -1
+      ? [...current.slice(0, emptyRowIndex), ...added, ...current.slice(emptyRowIndex + 1)]
+      : [...current, ...added]);
+    setNextId((id) => id + added.length);
+    toast.success(`Added ${cap.name} System Price${cap.admissionFee > 0 ? ' and KSEB Fee' : ''} line items.`);
     setCapacitiesOpen(false);
   };
   useEffect(() => {
@@ -272,6 +231,7 @@ export function NewInvoiceForm() {
     setErrors(true);
     if (!customer || !hasDescription) { toast.error(!customer ? 'Select a customer before saving.' : 'Add at least one item with a description.'); return; }
     if (numberMode === 'manual' && !invoiceNumber.trim()) { toast.error('Enter an invoice number or choose auto-generate.'); return; }
+    if (receivedPayment && (!Number.isFinite(Number(receivedAmount)) || Number(receivedAmount) <= 0 || Number(receivedAmount) > payableTotal)) { toast.error('Amount received must be greater than zero and no more than the invoice total.'); return; }
     setBusy(true);
     try {
       let invoiceCustomer = customer;
@@ -282,7 +242,6 @@ export function NewInvoiceForm() {
         setCustomers((current) => [...current.filter((entry) => entry.id !== invoiceCustomer.id && entry.id !== customer.id), invoiceCustomer].sort((a, b) => a.name.localeCompare(b.name)));
       }
       const billedTo = [invoiceCustomer.name, invoiceCustomer.address, invoiceCustomer.email, invoiceCustomer.phone, gstin ? `GSTIN: ${gstin}` : ''].filter(Boolean).join('\n');
-      const effectiveTaxRate = subtotal > 0 ? Math.min(1, Math.max(0, taxAmount / subtotal)) : 0;
       const invoice = await saveInvoiceRequest({
         ...(numberMode === 'manual' ? { invoiceNumber: invoiceNumber.trim() } : {}),
         billedTo,
@@ -290,10 +249,10 @@ export function NewInvoiceForm() {
         invoiceDate: invoiceDate.toISOString(),
         dueDate: dueDate.toISOString(),
         notes: [subject.trim(), customerNotes.trim(), invoiceTerms.trim() ? `Terms & Conditions:\n${invoiceTerms.trim()}` : ''].filter(Boolean).join('\n\n'),
-        taxRate: effectiveTaxRate,
+        taxRate: taxPercent / 100,
         discountAmount,
-        withholdingAmount,
-        withholdingType: withholding,
+        withholdingAmount: 0,
+        withholdingType: null,
         serviceCharge: shipping,
         otherCharges: adjustment,
         status: status === 'SENT' ? 'DRAFT' : status,
@@ -385,7 +344,6 @@ export function NewInvoiceForm() {
                       quantity: it.quantity || 1,
                       rate: it.unitPrice || 0,
                       discount: 0,
-                      tax: 0,
                     })));
                     setNextId(prop.items.length + 1);
                     toast.success(`Loaded ${prop.items.length} item(s) from proposal ${prop.proposalNo}.`);
@@ -398,14 +356,14 @@ export function NewInvoiceForm() {
             </div>
           </div>
         )}
-        <div className="overflow-x-auto"><table className="w-full min-w-[970px] border-separate border-spacing-0"><thead><tr className="bg-muted/35 text-left text-[11px] font-semibold text-muted-foreground"><th className="px-3 py-3">ITEM DETAILS</th><th className="px-2">QUANTITY</th><th className="px-2">RATE</th><th className="px-2">DISCOUNT</th><th className="px-2">TAX</th><th className="px-3 text-right">AMOUNT</th><th className="w-10" /></tr></thead><tbody>{items.map((item) => <InvoiceItemRow key={item.id} item={item} catalog={catalog} onChange={updateItem} onRemove={() => setItems((current) => current.length > 1 ? current.filter((entry) => entry.id !== item.id) : current)} onEnter={appendRow} />)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[870px] border-separate border-spacing-0"><thead><tr className="bg-muted/35 text-left text-[11px] font-semibold text-muted-foreground"><th className="px-3 py-3">ITEM DETAILS</th><th className="px-2">QUANTITY</th><th className="px-2">RATE</th><th className="px-2">DISCOUNT</th><th className="px-3 text-right">AMOUNT</th><th className="w-10" /></tr></thead><tbody>{items.map((item) => <InvoiceItemRow key={item.id} item={item} catalog={catalog} onChange={updateItem} onRemove={() => setItems((current) => current.length > 1 ? current.filter((entry) => entry.id !== item.id) : current)} onEnter={appendRow} />)}</tbody></table></div>
         {errors && !hasDescription && <p className="mt-2 text-xs text-destructive">Add an item description and quantity.</p>}
         <div className="mt-4"><Button type="button" variant="outline" size="sm" onClick={appendRow}><Plus className="size-4" /> Add Item</Button></div>
       </Section>
-      <div className="grid gap-5 xl:grid-cols-2"><Section title="Customer Notes"><Textarea value={customerNotes} onChange={(event) => setCustomerNotes(event.target.value)} className="min-h-24 resize-y" /><div className="mt-5"><label className="mb-2 block text-sm font-medium">Terms &amp; Conditions</label><Textarea value={invoiceTerms} onChange={(event) => setInvoiceTerms(event.target.value)} placeholder="Enter terms and conditions" className="min-h-24 resize-y" /></div></Section><Section title="Invoice Summary"><TotalsPanel subtotal={subtotal} taxAmount={taxAmount} discount={discount} setDiscount={setDiscount} discountMode={discountMode} setDiscountMode={setDiscountMode} shipping={shipping} setShipping={setShipping} adjustment={adjustment} setAdjustment={setAdjustment} total={total} withholding={withholding} setWithholding={setWithholding} withholdingRate={withholdingRate} setWithholdingRate={setWithholdingRate} /></Section></div>
+      <div className="grid gap-5 xl:grid-cols-2"><Section title="Customer Notes"><Textarea value={customerNotes} onChange={(event) => setCustomerNotes(event.target.value)} className="min-h-24 resize-y" /><div className="mt-5"><label className="mb-2 block text-sm font-medium">Terms &amp; Conditions</label><Textarea value={invoiceTerms} onChange={(event) => setInvoiceTerms(event.target.value)} placeholder="Enter terms and conditions" className="min-h-24 resize-y" /></div></Section><Section title="Invoice Summary"><TotalsPanel subtotal={subtotal} taxPercent={taxPercent} setTaxPercent={setTaxPercent} taxAmount={taxAmount} discount={discount} setDiscount={setDiscount} discountMode={discountMode} setDiscountMode={setDiscountMode} shipping={shipping} setShipping={setShipping} adjustment={adjustment} setAdjustment={setAdjustment} total={payableTotal} amountReceived={receivedPayment ? Number(receivedAmount) || 0 : 0} balanceDue={Math.max(0, payableTotal - (receivedPayment ? Number(receivedAmount) || 0 : 0))} /></Section></div>
       <Section title="Payment Received">
         <label className="flex items-center gap-2 text-sm font-medium"><Checkbox checked={receivedPayment} onCheckedChange={(checked) => { setReceivedPayment(checked === true); if (checked === true) { setReceivedAmount(payableTotal.toFixed(2)); setReceivedAmountEdited(false); void getPaymentNumberPreview().then((preview) => { setReceivedPaymentNumber(preview.paymentNumber); setPaymentAutoGenerate(preview.settings.autoGenerate); }).catch((error) => toast.error(error instanceof Error ? error.message : 'Could not load payment number preferences.')); } }} />I have received the payment</label>
-        {receivedPayment && <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><Field label="Amount Received" required><Input type="number" min="0.01" max={payableTotal} step="0.01" value={receivedAmount} onChange={(event) => { setReceivedAmount(event.target.value); setReceivedAmountEdited(true); }} /></Field><Field label="Payment Mode" required><select value={receivedMode} onChange={(event) => setReceivedMode(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option>UPI</option><option>Bank Transfer</option><option>Cash</option><option>Cheque</option><option>Card</option><option>Other</option></select></Field><Field label="Deposit To"><Input value={receivedDepositTo} onChange={(event) => setReceivedDepositTo(event.target.value)} placeholder="Bank or cash account" /></Field><Field label="Payment Date" required><Input type="date" value={receivedDate} onChange={(event) => setReceivedDate(event.target.value)} /></Field><Field label="Reference #"><Input value={receivedReference} onChange={(event) => setReceivedReference(event.target.value)} /></Field>{!paymentAutoGenerate && <Field label="Payment #" required><div className="flex gap-2"><Input value={receivedPaymentNumber} onChange={(event) => setReceivedPaymentNumber(event.target.value)} /><Button type="button" variant="outline" size="icon" aria-label="Payment number settings" onClick={() => setPaymentSettingsOpen(true)}><Settings2 className="size-4" /></Button></div></Field>}</div>}
+        {receivedPayment && <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><Field label="Amount Received" required><Input type="number" min="0.01" max={payableTotal} step="0.01" value={receivedAmount} onChange={(event) => { setReceivedAmount(event.target.value); setReceivedAmountEdited(true); }} /></Field><Field label="Balance Due"><Input readOnly value={currency(Math.max(0, payableTotal - (Number(receivedAmount) || 0)))} /></Field><Field label="Payment Mode" required><select value={receivedMode} onChange={(event) => setReceivedMode(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option>UPI</option><option>Bank Transfer</option><option>Cash</option><option>Cheque</option><option>Card</option><option>Other</option></select></Field><Field label="Deposit To"><Input value={receivedDepositTo} onChange={(event) => setReceivedDepositTo(event.target.value)} placeholder="Bank or cash account" /></Field><Field label="Payment Date" required><Input type="date" value={receivedDate} onChange={(event) => setReceivedDate(event.target.value)} /></Field><Field label="Reference #"><Input value={receivedReference} onChange={(event) => setReceivedReference(event.target.value)} /></Field>{!paymentAutoGenerate && <Field label="Payment #" required><div className="flex gap-2"><Input value={receivedPaymentNumber} onChange={(event) => setReceivedPaymentNumber(event.target.value)} /><Button type="button" variant="outline" size="icon" aria-label="Payment number settings" onClick={() => setPaymentSettingsOpen(true)}><Settings2 className="size-4" /></Button></div></Field>}</div>}
       </Section>
       <div className="flex justify-end"><Link href="/invoices" className="text-xs text-muted-foreground hover:text-foreground">Return to invoices</Link></div>
     </div>
@@ -428,7 +386,7 @@ function RequiredCapacitiesDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   capacities: RequiredCapacity[];
-  onSelectCapacity: (capacity: RequiredCapacity, mode: 'full' | 'split') => void;
+  onSelectCapacity: (capacity: RequiredCapacity) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -498,27 +456,9 @@ function RequiredCapacitiesDialog({
                       )}
                     </div>
 
-                    <div className="flex sm:flex-col gap-2 shrink-0">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => onSelectCapacity(cap, 'full')}
-                        className="text-xs h-8"
-                      >
-                        + Add Full ({currency(grandTotal)})
-                      </Button>
-                      {cap.admissionFee > 0 && cap.courseFee > 0 && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onSelectCapacity(cap, 'split')}
-                          className="text-xs h-8"
-                        >
-                          + Split (Sys + KSEB)
-                        </Button>
-                      )}
-                    </div>
+                    <Button type="button" size="sm" onClick={() => onSelectCapacity(cap)} className="shrink-0 text-xs h-8">
+                      + Add ({currency(grandTotal)})
+                    </Button>
                   </div>
                 );
               })}

@@ -24,7 +24,7 @@ import {
   IconUsers,
   type Icon,
 } from '@tabler/icons-react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 
 import { ProfileDialog } from '@/components/profile/profile-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -327,6 +327,7 @@ function UserMenu({ user }: { user: UserProfile }) {
 
 export function AppSidebar({ user, counts, className, ...props }: AppSidebarProps) {
   const pathname = usePathname();
+  const { setOpen } = useSidebar();
   const position = getPositionDefinition(user?.role);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -359,7 +360,15 @@ export function AppSidebar({ user, counts, className, ...props }: AppSidebarProp
       className={cn('border-r border-border bg-sidebar', className)}
       {...props}
     >
-      <SidebarHeader className="px-7 pb-5 pt-8 group-data-[collapsible=icon]:px-2">
+      <SidebarHeader className="relative px-7 pb-5 pt-8 group-data-[collapsible=icon]:px-2">
+        <button
+          type="button"
+          aria-label="Hide sidebar"
+          onClick={() => setOpen(false)}
+          className="medium-sidebar-close"
+        >
+          <X className="size-4" />
+        </button>
         <Link href="/dashboard" className="flex flex-col gap-4 group-data-[collapsible=icon]:items-center">
           <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black shadow-sm">
             <Image src="/branding/zee-one-logo.png" alt="Zee One logo" width={32} height={32} />

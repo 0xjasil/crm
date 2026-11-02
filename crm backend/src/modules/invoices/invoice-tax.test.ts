@@ -28,7 +28,7 @@ function fixture(amountPaid = 0) {
   return { service: new InvoiceService(client), saved: () => saved };
 }
 
-for (const rate of [0, 0.05, 0.12, 0.18, 0.28]) {
+for (const rate of [0, 0.05, 0.12, 0.18, 0.1825, 0.28]) {
   test(`tax-only edit to ${rate * 100}% recalculates totals without resubmitting items`, async () => {
     const { service, saved } = fixture();
     const input = updateInvoiceSchema.parse({ taxRate: rate });
@@ -56,6 +56,13 @@ test('changing items and tax together recalculates from the new subtotal', async
   assert.equal(decimal(saved()?.subtotal).toString(), decimal(2000).toString());
   assert.equal(decimal(saved()?.taxAmount).toString(), decimal(100).toString());
   assert.equal(decimal(saved()?.totalAmount).toString(), decimal(2100).toString());
+});
+
+test('invoice discount reduces the taxable base before tax is added', async () => {
+  const { service, saved } = fixture();
+  await service.updateInvoice('invoice-1', updateInvoiceSchema.parse({ taxRate: 0.1825, discountAmount: 200, serviceCharge: 50, otherCharges: 20 }), 'admin-1');
+  assert.equal(decimal(saved()?.taxAmount).toString(), decimal(146).toString());
+  assert.equal(decimal(saved()?.totalAmount).toString(), decimal(1016).toString());
 });
 
 test('tax reduction updates a partially paid invoice balance', async () => {

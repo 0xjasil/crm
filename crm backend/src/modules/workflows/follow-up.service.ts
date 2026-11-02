@@ -14,18 +14,10 @@ interface ActionResponse<T = unknown> {
     };
 }
 import { normalizePagination, validateSortField, validateSortOrder, buildPaginationResult, } from './support/lib/pagination-utils.js';
-export function createFollowUpService(prisma: PrismaClient, currentUser: WorkflowUser) {
-    const workflowSession = { user: currentUser, session: { id: currentUser.id, userId: currentUser.id } };
-    async function getCurrentUser() {
-        const session = workflowSession;
-        if (!session) {
-            throw new Error('Unauthorized');
-        }
-        return session.user;
-    }
+
+export function createFollowUpService(prisma: PrismaClient, user: WorkflowUser) {
     async function createFollowUp(data: CreateFollowUpInput): Promise<ActionResponse> {
         try {
-            const user = await getCurrentUser();
             // Check if user has access to the enquiry
             const enquiry = await prisma.enquiry.findUnique({
                 where: { id: data.enquiryId },
@@ -83,7 +75,6 @@ export function createFollowUpService(prisma: PrismaClient, currentUser: Workflo
     const FOLLOW_UP_SORT_FIELDS = ['scheduledAt', 'createdAt', 'status'];
     async function getFollowUps(filters: FollowUpFilters = {}): Promise<ActionResponse> {
         try {
-            const user = await getCurrentUser();
             const { page, limit, skip } = normalizePagination({
                 page: filters.page,
                 limit: filters.limit,
@@ -200,7 +191,6 @@ export function createFollowUpService(prisma: PrismaClient, currentUser: Workflo
     }
     async function updateFollowUp(data: UpdateFollowUpInput): Promise<ActionResponse> {
         try {
-            const user = await getCurrentUser();
             const { id, rescheduledAt, ...updateData } = data;
             // Check if follow-up exists and user has permission
             const existingFollowUp = await prisma.followUp.findUnique({
@@ -271,7 +261,6 @@ export function createFollowUpService(prisma: PrismaClient, currentUser: Workflo
     }
     async function deleteFollowUp(id: string): Promise<ActionResponse> {
         try {
-            const user = await getCurrentUser();
             // Check if follow-up exists and user has permission
             const existingFollowUp = await prisma.followUp.findUnique({
                 where: { id },

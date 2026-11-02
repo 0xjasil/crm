@@ -43,6 +43,16 @@ export const AdmissionActionsRoutes: FastifyPluginAsync = async (app) => {
         const body = z.object({ input: z.unknown().optional() }).parse(request.body || {});
         return createAdmissionActionsService(app.prisma, request.currentUser).getAdmissionsByEnquiry(body.input);
     });
+    app.post('/getSurveyAssignees', async (request) => {
+        requireWorkflowAccess(request.currentUser, 'admission-actions', 'getSurveyAssignees');
+        z.object({}).parse(request.body || {});
+        return createAdmissionActionsService(app.prisma, request.currentUser).getSurveyAssignees();
+    });
+    app.post('/reassignAdmission', async (request) => {
+        requireWorkflowAccess(request.currentUser, 'admission-actions', 'reassignAdmission');
+        const body = z.object({ input: z.unknown().optional() }).parse(request.body || {});
+        return createAdmissionActionsService(app.prisma, request.currentUser).reassignAdmission(body.input);
+    });
     app.post('/getEnquirySourcesForAdmission', async (request) => {
         requireWorkflowAccess(request.currentUser, 'admission-actions', 'getEnquirySourcesForAdmission');
         const body = z.object({ input: z.unknown().optional() }).parse(request.body || {});

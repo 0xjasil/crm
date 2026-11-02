@@ -1,5 +1,7 @@
 'use client';
 
+import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
+
 import type { CreateEnquiryInput, UpdateEnquiryInput, Enquiry, EnquiryFilters } from '@/types/enquiry';
 
 type EnquiryListItem = Omit<Enquiry, 'createdAt' | 'updatedAt' | 'lastContactDate'> & {
@@ -36,7 +38,7 @@ export async function createEnquiry(input: CreateEnquiryInput) {
 
   const { enquirySourceId, requiredServiceId, ...fields } = input;
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
-  const response = await fetch(`${apiUrl}/enquiries`, {
+  const response = await authenticatedFetch(`${apiUrl}/enquiries`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ ...fields, sourceId: enquirySourceId || undefined, serviceId: requiredServiceId || undefined }),
@@ -54,7 +56,7 @@ export async function updateEnquiry(input: UpdateEnquiryInput) {
 
   const { id, enquirySourceId, requiredServiceId, preferredCourseId, ...fields } = input;
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
-  const response = await fetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
+  const response = await authenticatedFetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
@@ -77,7 +79,7 @@ export async function deleteEnquiry(id: string) {
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');
 
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
-  const response = await fetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
+  const response = await authenticatedFetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -93,7 +95,7 @@ export async function fetchEnquiry(id: string) {
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');
 
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
-  const response = await fetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
+  const response = await authenticatedFetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
   });
@@ -131,7 +133,7 @@ export async function fetchEnquiries(filters: EnquiryFilters = {}) {
   if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
 
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
-  const response = await fetch(`${apiUrl}/enquiries?${params}`, {
+  const response = await authenticatedFetch(`${apiUrl}/enquiries?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
   });

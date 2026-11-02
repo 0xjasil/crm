@@ -1,6 +1,7 @@
-﻿import { FastifyReply, FastifyRequest } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { UnauthorizedError } from '../errors/app-error.js';
 import { UserPayload } from '../types/index.js';
+import { getUserEffectivePermissions } from '../modules/workflows/support/lib/permissions.js';
 
 export async function authenticate(request: FastifyRequest, _reply: FastifyReply) {
   try {
@@ -33,8 +34,13 @@ export async function authenticate(request: FastifyRequest, _reply: FastifyReply
       throw new UnauthorizedError('User account is banned');
     }
 
+    const permissions = decoded.permissions ?? getUserEffectivePermissions(user);
+
     const { password: _password, ...publicUser } = user;
-    request.currentUser = publicUser;
+    request.currentUser = {
+      ...publicUser,
+      permissions,
+    };
 
     request.user = {
       id: user.id,
@@ -42,6 +48,7 @@ export async function authenticate(request: FastifyRequest, _reply: FastifyReply
       name: user.name,
       role: user.role,
       branch: user.branch,
+      permissions,
     };
   } catch (err) {
     if (err instanceof UnauthorizedError) {

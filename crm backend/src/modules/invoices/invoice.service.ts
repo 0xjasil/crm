@@ -98,15 +98,15 @@ export class InvoiceService {
       });
 
       const taxRate = decimal(input.taxRate ?? 0.18);
-      const taxAmount = roundMoney(subtotal.times(taxRate));
       const discountAmount = Prisma.Decimal.min(subtotal, input.discountAmount ?? 0);
+      const taxableSubtotal = Prisma.Decimal.max(0, subtotal.minus(discountAmount));
+      const taxAmount = roundMoney(taxableSubtotal.times(taxRate));
       const withholdingAmount = Prisma.Decimal.min(Prisma.Decimal.max(0, subtotal.minus(discountAmount)), input.withholdingAmount ?? 0);
       const serviceCharge = decimal(input.serviceCharge);
       const otherCharges = decimal(input.otherCharges);
-      const grossAmount = subtotal.plus(taxAmount);
+      const grossAmount = taxableSubtotal.plus(taxAmount);
       const additionalCharges = serviceCharge.plus(otherCharges);
-      const deductions = discountAmount.plus(withholdingAmount);
-      const totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(deductions)));
+      const totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(withholdingAmount)));
 
       const invoice = await tx.invoice.create({
         data: {
@@ -181,16 +181,16 @@ export class InvoiceService {
 
       }
       // A tax-rate-only edit must recalculate amounts even when items are unchanged.
-      const taxAmount = roundMoney(subtotal.times(taxRate));
       const discountAmount = Prisma.Decimal.min(subtotal, input.discountAmount ?? existing.discountAmount);
+      const taxableSubtotal = Prisma.Decimal.max(0, subtotal.minus(discountAmount));
+      const taxAmount = roundMoney(taxableSubtotal.times(taxRate));
       const withholdingAmount = Prisma.Decimal.min(
         Prisma.Decimal.max(0, subtotal.minus(discountAmount)),
         input.withholdingAmount ?? existing.withholdingAmount
       );
-      const grossAmount = subtotal.plus(taxAmount);
+      const grossAmount = taxableSubtotal.plus(taxAmount);
       const additionalCharges = decimal(serviceCharge).plus(otherCharges);
-      const deductions = discountAmount.plus(withholdingAmount);
-      totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(deductions)));
+      totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(withholdingAmount)));
       if (totalAmount.lessThan(existing.amountPaid)) throw new BadRequestError('Invoice total cannot be reduced below the amount already paid');
       const balanceDue = roundMoney(totalAmount.minus(existing.amountPaid));
 
@@ -272,11 +272,11 @@ export class InvoiceService {
     const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
     const items = await tx.invoiceItem.findMany({ where: { invoiceId } });
     const subtotal = items.reduce((sum, item) => sum.plus(item.lineTotal), decimal(0));
-    const taxAmount = roundMoney(subtotal.times(invoice.taxRate));
-    const grossAmount = subtotal.plus(taxAmount);
+    const taxableSubtotal = Prisma.Decimal.max(0, subtotal.minus(invoice.discountAmount));
+    const taxAmount = roundMoney(taxableSubtotal.times(invoice.taxRate));
+    const grossAmount = taxableSubtotal.plus(taxAmount);
     const additionalCharges = decimal(invoice.serviceCharge).plus(invoice.otherCharges);
-    const deductions = decimal(invoice.discountAmount).plus(invoice.withholdingAmount);
-    const totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(deductions)));
+    const totalAmount = roundMoney(Prisma.Decimal.max(0, grossAmount.plus(additionalCharges).minus(invoice.withholdingAmount)));
     if (totalAmount.lessThan(invoice.amountPaid)) throw new BadRequestError('Invoice total cannot be reduced below the amount already paid');
     const balanceDue = roundMoney(totalAmount.minus(invoice.amountPaid));
     const status = decimal(invoice.amountPaid).greaterThan(0) ? balanceDue.isZero() ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID : invoice.status;

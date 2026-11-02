@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { getUserEffectivePermissions } from './permissions.js';
 
 export const installationProgressSchema = z.object({
   id: z.string().min(1),
@@ -9,13 +10,30 @@ export const installationProgressSchema = z.object({
   ]),
 }).strict();
 
-type ProgressUser = { id: string; role?: string | null };
+type ProgressUser = {
+  id: string;
+  role?: string | null;
+  branch?: string | null;
+  permissions?: string[];
+  userRole?: { permissions: string[] } | null;
+};
 
-// Admins and all field operations staff may update any project's progress.
+// Staff can update only assigned surveys; managers are limited to their branch.
 export function installationProgressScope(user: ProgressUser): Prisma.AdmissionWhereInput | null {
-  if (user.role === 'admin') return {};
-  if (!['job_orders', 'joborders'].includes(user.role || '')) return null;
-  return {};
+  const role = (user.role || '').toLowerCase().trim();
+  if (role === 'admin') return {};
+  if (['manager', 'branch manager'].includes(role)) {
+    if (!user.branch) return { id: '__no_branch_access__' };
+    return {
+      OR: [
+        { enquiry: { branchId: user.branch } },
+        { enquiryId: null, createdBy: { branch: user.branch } },
+      ],
+    };
+  }
+  const permissions = getUserEffectivePermissions(user);
+  if (!permissions.some((permission) => ['*', 'all', 'projects'].includes(permission))) return null;
+  return { assignedToUserId: user.id };
 }
 
 export function installationProgressData(stage: z.infer<typeof installationProgressSchema>['stage'], existingNotes: string | null) {

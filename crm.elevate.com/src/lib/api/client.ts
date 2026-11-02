@@ -1,4 +1,6 @@
 import 'server-only';
+import { redirect } from 'next/navigation';
+import { getLogoutReason, sessionLogoutUrl } from '@/lib/session-logout';
 import { cookies, headers } from 'next/headers';
 import { env } from '@/lib/env';
 import { parseApiError } from '@/lib/api/errors';
@@ -30,6 +32,11 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   });
 
   if (!response.ok) {
+    const reason = getLogoutReason(response.status);
+    // Credential errors must remain available to the login form.
+    if (reason && !['/auth/login', '/auth/logout'].includes(path.split('?')[0])) {
+      redirect(sessionLogoutUrl(reason));
+    }
     const body: unknown = await response.json().catch(() => null);
     throw parseApiError(body, response.status);
   }
