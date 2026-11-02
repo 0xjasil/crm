@@ -290,11 +290,17 @@ export function createAuthService(prisma: PrismaClient, currentUser: WorkflowUse
                 message: 'User deleted successfully',
             };
         }
-        catch (error) {
+        catch (error: any) {
             console.error('Delete user error:', error);
+            if (error?.code === 'P2003') {
+                return {
+                    success: false,
+                    message: 'This user is linked to existing CRM records and cannot be deleted yet.',
+                };
+            }
             return {
                 success: false,
-                message: 'Failed to delete user',
+                message: error?.message || 'Failed to delete user',
             };
         }
     }
