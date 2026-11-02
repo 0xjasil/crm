@@ -64,8 +64,45 @@ export const deleteUserAction = actionClient
       userId: z.string(),
     })
   )
-  .action(async ({ parsedInput }) => {
-    return backendPost<{ success: boolean; message: string; }>('/workflows/auth/deleteUserAction', { input: parsedInput ?? {} });
+  .action(async ({ parsedInput: { userId } }) => {
+    try {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!targetUser) {
+        return { success: false, message: 'User not found' };
+      }
+
+      if (targetUser.role === 'admin' || targetUser.email === 'admin@elevate.com') {
+        return {
+          success: false,
+          message: 'Security policy: The primary administrator account cannot be deleted',
+        };
+      }
+
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+
+      await cacheService.delete(`user:${userId}`);
+      if (targetUser.email) {
+        await cacheService.delete(`user:email:${targetUser.email}`);
+      }
+
+      return {
+        success: true,
+        message: 'User deleted successfully',
+      };
+    } catch (error: any) {
+      console.error('Delete user error:', error);
+      return {
+        success: false,
+        message: error?.code === 'P2003'
+          ? 'This user is linked to existing CRM records and cannot be deleted yet.'
+          : error?.message || 'Failed to delete user',
+      };
+    }
   });
 
 export const updateProfileAction = actionClient
