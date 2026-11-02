@@ -105,6 +105,8 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
         setShowDeleteDialog(false);
         setUserToDelete(null);
         router.refresh();
+      } else if (data?.message) {
+        toast.error(data.message);
       }
     },
     onError: () => {

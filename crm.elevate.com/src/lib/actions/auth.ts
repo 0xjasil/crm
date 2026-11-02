@@ -350,11 +350,13 @@ export const deleteUserAction = actionClient
         success: true,
         message: 'User deleted successfully',
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete user error:', error);
       return {
         success: false,
-        message: 'Failed to delete user',
+        message: error?.code === 'P2003'
+          ? 'This user is linked to existing CRM records and cannot be deleted yet.'
+          : error?.message || 'Failed to delete user',
       };
     }
   });
