@@ -2,7 +2,7 @@
 import { ForbiddenError, UnauthorizedError } from '../errors/app-error.js';
 
 export function requireRole(allowedRoles: string[]) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
+  return async (request: FastifyRequest, _reply: FastifyReply) => {
     if (!request.user) {
       throw new UnauthorizedError('Authentication required');
     }

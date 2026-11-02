@@ -26,7 +26,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { getAdmissionById, getCurrentUser } from "@/server/actions/admission-actions";
-import prisma from "@/lib/prisma";
+import { backendRequest } from '@/lib/api/backend-server';
 import { installationProgressScope } from "@/lib/installation-progress";
 import { getServiceBillByStudentId } from "@/server/actions/service-actions";
 import { toast } from "sonner";
@@ -51,7 +51,7 @@ export default async function AdmissionDetailPage({
   const currentUser = await getCurrentUser();
   const progressScope = installationProgressScope(currentUser);
   const canEditProgress = progressScope !== null && Boolean(
-    await prisma.admission.findFirst({ where: { id, ...progressScope }, select: { id: true } })
+    await backendRequest<boolean>('/ui/admissions/' + encodeURIComponent(id) + '/can-update-progress')
   );
 
   const result = await getAdmissionById({ id: id }).catch((error) => {

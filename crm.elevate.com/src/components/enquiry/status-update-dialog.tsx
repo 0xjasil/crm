@@ -92,7 +92,7 @@ export function StatusUpdateDialog({
   const form = useForm<StatusUpdateFormData>({
     resolver: zodResolver(statusUpdateSchema),
     defaultValues: {
-      newStatus: currentStatus || EnquiryStatus.NEW,
+      newStatus: undefined,
       statusRemarks: '',
       directEnrollment: false,
     },
@@ -184,7 +184,7 @@ export function StatusUpdateDialog({
       setOpen(newOpen);
       if (!newOpen) {
         form.reset({
-          newStatus: currentStatus,
+          newStatus: undefined,
           statusRemarks: '',
           directEnrollment: false,
         });
@@ -221,7 +221,7 @@ export function StatusUpdateDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>New Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select new status" />

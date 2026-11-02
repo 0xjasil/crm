@@ -6,7 +6,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter), Arial, sans-serif;
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -68,14 +68,15 @@
   --chart-3: oklch(0.65 0.16 45);
   --chart-4: oklch(0.58 0.20 290);
   --chart-5: oklch(0.65 0.18 80);
-  --sidebar: oklch(0.99 0.002 260);
-  --sidebar-foreground: oklch(0.25 0.015 260);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.28 0.012 260);
   --sidebar-primary: oklch(0.55 0.18 152);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.945 0.008 260);
-  --sidebar-accent-foreground: oklch(0.18 0.015 260);
+  --sidebar-accent: oklch(0.955 0.006 260);
+  --sidebar-accent-foreground: oklch(0.15 0.015 260);
   --sidebar-border: oklch(0.92 0.005 260);
   --sidebar-ring: oklch(0.55 0.18 152);
+  --sidebar-width: 210px;
 }
 
 .dark {
@@ -128,6 +129,56 @@
   }
 }
 
+/* On tablet and compact desktop, the sidebar floats over the page. */
+@media (min-width: 768px) and (max-width: 1399px) {
+  [data-slot="sidebar-wrapper"]:has(> [data-slot="sidebar"][data-state="expanded"]) [data-slot="sidebar-gap"] {
+    width: 0;
+  }
+
+  .medium-sidebar-overlay {
+    position: fixed;
+    z-index: 20;
+    inset: var(--header-height) 0 0;
+    display: block;
+    border: 0;
+    background: rgb(15 23 42 / 18%);
+    cursor: default;
+  }
+
+  .medium-sidebar-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1;
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 0.375rem;
+    color: var(--muted-foreground);
+    background: transparent;
+    cursor: pointer;
+  }
+
+  [data-slot="sidebar"][data-collapsible="icon"] .medium-sidebar-close {
+    display: none;
+  }
+
+  .medium-sidebar-close:hover {
+    color: var(--foreground);
+    background: var(--sidebar-accent);
+  }
+}
+
+@media (min-width: 1400px), (max-width: 767px) {
+  .medium-sidebar-overlay,
+  .medium-sidebar-close {
+    display: none;
+  }
+}
+
 /* Utility to explicitly hide scrollbars if needed */
 @utility no-scrollbar {
   &::-webkit-scrollbar {
@@ -138,3 +189,4 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+

@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from 'next';
-import { DM_Sans } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { APP_CONFIG } from '@/config/app';
 import { Toaster } from 'sonner';
 
-const fontSans = DM_Sans({
-  variable: '--font-sans',
+const fontSans = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 export const viewport: Viewport = {

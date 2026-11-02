@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Filter, Eye, Edit, Trash2, MoreVertical, UserPlus, ListTodo, Briefcase, FileText } from 'lucide-react';
-import { getEnquiries } from '@/server/actions/enquiry';
+import { fetchEnquiries } from '@/lib/api/enquiry-api';
 import { getAllBranches } from '@/server/actions/data-management';
 import { ENQUIRY_STATUS_OPTIONS } from '@/constants/enquiry';
 import { toast } from 'sonner';
@@ -136,7 +136,7 @@ export default function EnquiriesPage() {
   const fetchEnquiriesData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getEnquiries({
+      const result = await fetchEnquiries({
         page: currentPage,
         limit: pageSize,
         search: debouncedSearch.trim() || undefined,

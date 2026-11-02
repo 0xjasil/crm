@@ -37,14 +37,13 @@ import { toast } from "sonner";
 import { Edit, Plus } from "lucide-react";
 
 import {
-  createEnquiry,
-  updateEnquiry,
   getBranches,
   getCourses,
   getEnquirySources,
   getRequiredServices,
   getUsers,
 } from "@/server/actions/enquiry-action";
+import { createEnquiry, updateEnquiry } from "@/lib/api/enquiry-api";
 import { EnquiryStatus, Enquiry } from "@/types/enquiry";
 import {
   Branch,
@@ -127,7 +126,7 @@ export function EnquiryFormDialog({
   branches: passedBranches,
 }: EnquiryFormDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     id?: string | null;
     role?: string | null;
@@ -167,19 +166,6 @@ export function EnquiryFormDialog({
     fetchCurrentUser();
   }, [open]);
 
-  // Actions
-  const {
-    executeAsync: createEnquiryAction,
-    result: createResult,
-    isExecuting: isCreating,
-  } = useAction(createEnquiry);
-
-  const {
-    executeAsync: updateEnquiryAction,
-    result: updateResult,
-    isExecuting: isUpdating,
-  } = useAction(updateEnquiry);
-
   const { execute: fetchBranches, result: branchesResult } =
     useAction(getBranches);
   const { execute: fetchCourses, result: coursesResult } =
@@ -193,8 +179,6 @@ export function EnquiryFormDialog({
 
   const hasFetchedRef = useRef(false);
 
-  const isExecuting = isCreating || isUpdating;
-  const actionResult = isEditMode ? updateResult : createResult;
 
   const { ksebBill: initialKseb, cleanNotes: initialNotes } = extractKsebBill(
     enquiry?.notes
@@ -226,7 +210,7 @@ export function EnquiryFormDialog({
       branchId: enquiry?.branchId || undefined,
 
       preferredCourseId: enquiry?.preferredCourseId || "",
-      requiredServiceId: enquiry?.requiredServiceId || "",
+      requiredServiceId: enquiry?.requiredServiceId || enquiry?.requiredService?.id || "",
       assignedToUserId: enquiry?.assignedToUserId || currentUser?.id || "",
       createdByUserId: enquiry?.createdByUserId || currentUser?.id || "",
     },
@@ -263,47 +247,12 @@ export function EnquiryFormDialog({
           "",
         branchId: defaultBranchId,
         preferredCourseId: enquiry?.preferredCourseId || "",
-        requiredServiceId: enquiry?.requiredServiceId || "",
+        requiredServiceId: enquiry?.requiredServiceId || enquiry?.requiredService?.id || "",
         assignedToUserId: enquiry?.assignedToUserId || currentUser?.id || "",
         createdByUserId: enquiry?.createdByUserId || currentUser?.id || "",
       });
     }
   }, [enquiry, isEditMode, form, userBranch, currentUser]);
-
-  // Monitor action results - only when actively processing
-  useEffect(() => {
-    if (!isProcessingAction) return;
-
-    if (actionResult?.data?.success) {
-      const message =
-        actionResult.data.message ||
-        (isEditMode
-          ? "Enquiry updated successfully"
-          : "Enquiry created successfully");
-      toast.success(message);
-      setOpen(false);
-      form.reset();
-      setIsProcessingAction(false);
-      onSuccess?.();
-    } else if (actionResult?.serverError) {
-      toast.error(
-        `Error ${isEditMode ? "updating" : "creating"} enquiry: ${
-          actionResult.serverError
-        }`
-      );
-      setIsProcessingAction(false);
-    } else if (actionResult?.validationErrors) {
-      const errorMessages = Object.entries(actionResult.validationErrors)
-        .map(
-          ([field, errors]) =>
-            `${field}: ${Array.isArray(errors) ? errors.join(", ") : errors}`
-        )
-        .join("\n");
-
-      toast.error(`Validation errors:\n${errorMessages}`);
-      setIsProcessingAction(false);
-    }
-  }, [actionResult, isEditMode, form, onSuccess, setOpen, isProcessingAction]);
 
   // Fetch dropdown data ONLY when dialog actually opens
   useEffect(() => {
@@ -322,18 +271,15 @@ export function EnquiryFormDialog({
   }, [open, passedBranches]);
 
   const onSubmit = async (data: EnquiryFormData) => {
-    setIsProcessingAction(true);
+    if (isExecuting) return;
+    setIsExecuting(true);
 
     // Use user's branch if they have one and no branch is selected
     const finalBranchId = data.branchId || userBranch || undefined;
 
-    // Ensure branchId is always a string for create action
-    if (isEditMode && !finalBranchId) {
-      // For edit mode, branchId can be undefined
-    } else if (!isEditMode && !finalBranchId) {
-      // For create mode, branchId is required
+    if (!isEditMode && !finalBranchId) {
       toast.error("Branch selection is required");
-      setIsProcessingAction(false);
+      setIsExecuting(false);
       return;
     }
 
@@ -354,65 +300,33 @@ export function EnquiryFormDialog({
     }
 
     try {
-      if (isEditMode) {
-        // Update existing enquiry
-        const payload = {
-          id: enquiry.id,
-          candidateName: data.candidateName,
-          phone: data.phone,
-          status: data.status || EnquiryStatus.NEW,
-          enquirySourceId: data.enquirySourceId || undefined,
-          branchId: finalBranchId,
-          contact2: data.contact2 || undefined,
-          email: data.email || undefined,
-          address: finalAddress || undefined,
-          notes: finalNotes || undefined,
-          feedback: data.feedback || undefined,
-          preferredCourseId: data.preferredCourseId || undefined,
-          requiredServiceId: data.requiredServiceId || undefined,
-        };
-        const res = await updateEnquiryAction(payload);
-        if (res?.data?.success) {
-          toast.success(res.data.message || "Enquiry updated successfully");
-          setOpen(false);
-          form.reset();
-          setIsProcessingAction(false);
-          onSuccess?.();
-        } else if (res?.serverError) {
-          toast.error(`Error updating enquiry: ${res.serverError}`);
-          setIsProcessingAction(false);
-        }
-      } else {
-        // Create new enquiry
-        const payload = {
-          candidateName: data.candidateName,
-          phone: data.phone,
-          enquirySourceId: data.enquirySourceId || undefined,
-          branchId: finalBranchId!,
-          contact2: data.contact2 || undefined,
-          email: data.email || undefined,
-          address: finalAddress || undefined,
-          preferredCourseId: data.preferredCourseId || undefined,
-          requiredServiceId: data.requiredServiceId || undefined,
-          notes: finalNotes || undefined,
-          assignedToUserId: data.assignedToUserId || undefined,
-          createdByUserId: data.createdByUserId || undefined,
-        };
-        const res = await createEnquiryAction(payload);
-        if (res?.data?.success) {
-          toast.success(res.data.message || "Enquiry created successfully");
-          setOpen(false);
-          form.reset();
-          setIsProcessingAction(false);
-          onSuccess?.();
-        } else if (res?.serverError) {
-          toast.error(`Error creating enquiry: ${res.serverError}`);
-          setIsProcessingAction(false);
-        }
-      }
-    } catch (err: any) {
-      toast.error(err?.message || "An unexpected error occurred");
-      setIsProcessingAction(false);
+      const payload = {
+        candidateName: data.candidateName,
+        phone: data.phone,
+        contact2: data.contact2,
+        email: data.email,
+        address: finalAddress,
+        notes: finalNotes,
+        branchId: finalBranchId,
+        enquirySourceId: data.enquirySourceId,
+        preferredCourseId: data.preferredCourseId,
+        requiredServiceId: data.requiredServiceId,
+      };
+      const result = isEditMode
+        ? await updateEnquiry({ ...payload, id: enquiry.id, status: data.status, feedback: data.feedback })
+        : await createEnquiry({
+            ...payload,
+            assignedToUserId: data.assignedToUserId || undefined,
+            createdByUserId: data.createdByUserId || undefined,
+          });
+      toast.success(result.message || (isEditMode ? "Enquiry updated successfully" : "Enquiry created successfully"));
+      setOpen(false);
+      form.reset();
+      onSuccess?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save enquiry");
+    } finally {
+      setIsExecuting(false);
     }
   };
 

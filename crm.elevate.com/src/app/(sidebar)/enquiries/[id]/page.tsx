@@ -59,7 +59,7 @@ import {
   FileText,
   Zap,
 } from 'lucide-react';
-import { getEnquiry } from '@/server/actions/enquiry';
+import { fetchEnquiry as fetchEnquiryRequest } from '@/lib/api/enquiry-api';
 import { createFollowUp } from '@/server/actions/follow-up';
 import { createCallLog } from '@/server/actions/call-log';
 import { getEnquiryActivities } from '@/server/actions/enquiry-activity-actions';
@@ -151,14 +151,14 @@ export default function EnquiryDetailPage() {
   const fetchEnquiry = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getEnquiry(enquiryId);
+      const result = await fetchEnquiryRequest(enquiryId);
       if (result.success) {
         setEnquiry(result.data as Enquiry);
       } else {
         toast.error(result.message || 'Failed to fetch enquiry');
       }
-    } catch {
-      toast.error('Failed to fetch enquiry');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch enquiry');
     } finally {
       setIsLoading(false);
     }

@@ -1,4 +1,5 @@
-﻿import { PrismaClient, Prisma, EnquiryStatus, InvoiceStatus } from '@prisma/client';
+import { decimal } from '../../shared/utils/money.js';
+import { PrismaClient, Prisma, EnquiryStatus, InvoiceStatus } from '@prisma/client';
 
 export class ReportService {
   constructor(private prisma: PrismaClient) {}
@@ -142,8 +143,8 @@ export class ReportService {
       }),
     ]);
 
-    const totalCollected = receipts.reduce((sum, r) => sum + r.amountCollected, 0);
-    const totalPendingBalance = admissions.reduce((sum, a) => sum + (a.balance || 0), 0);
+    const totalCollected = receipts.reduce((sum, r) => decimal(sum).plus(r.amountCollected), decimal(0));
+    const totalPendingBalance = admissions.reduce((sum, a) => decimal(sum).plus((a.balance || 0)), decimal(0));
 
     return {
       summary: {
@@ -169,11 +170,11 @@ export class ReportService {
       include: { createdBy: { select: { id: true, name: true } } },
     });
 
-    const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const categoryBreakdown: Record<string, number> = {};
+    const totalExpense = expenses.reduce((sum, e) => decimal(sum).plus(e.amount), decimal(0));
+    const categoryBreakdown: Record<string, Prisma.Decimal> = {};
 
     for (const e of expenses) {
-      categoryBreakdown[e.category] = (categoryBreakdown[e.category] || 0) + e.amount;
+      categoryBreakdown[e.category] = decimal(categoryBreakdown[e.category] || 0).plus(e.amount);
     }
 
     return {
@@ -199,10 +200,10 @@ export class ReportService {
       orderBy: { invoiceDate: 'desc' },
     });
 
-    const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const totalTax = invoices.reduce((sum, inv) => sum + inv.taxAmount, 0);
+    const totalInvoiced = invoices.reduce((sum, inv) => decimal(sum).plus(inv.totalAmount), decimal(0));
+    const totalTax = invoices.reduce((sum, inv) => decimal(sum).plus(inv.taxAmount), decimal(0));
     const paidInvoices = invoices.filter((i) => i.status === InvoiceStatus.PAID);
-    const totalPaid = paidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const totalPaid = paidInvoices.reduce((sum, inv) => decimal(sum).plus(inv.totalAmount), decimal(0));
 
     return {
       summary: {

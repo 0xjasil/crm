@@ -1,4 +1,5 @@
-﻿import { PrismaClient, Prisma, CollectedTowards } from '@prisma/client';
+import { decimal, moneyMax } from '../../shared/utils/money.js';
+import { PrismaClient, Prisma, CollectedTowards } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '../../errors/app-error.js';
 import { PDFService } from '../../services/pdf/pdf.service.js';
 import { CreateReceiptInput, ReceiptFilterInput } from './receipt.schema.js';
@@ -95,7 +96,7 @@ export class ReceiptService {
       });
 
       // Update admission balance and nextDueDate
-      const newBalance = Math.max(0, admission.balance - input.amountCollected);
+      const newBalance = moneyMax(0, decimal(admission.balance).minus(input.amountCollected));
       await tx.admission.update({
         where: { id: input.admissionId },
         data: {
@@ -126,6 +127,6 @@ export class ReceiptService {
 
   async generatePDF(id: string) {
     const receipt = await this.getReceiptById(id);
-    return PDFService.generateReceiptPDF(receipt as any);
+    return PDFService.generateReceiptPDF(receipt);
   }
 }

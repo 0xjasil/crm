@@ -10,11 +10,11 @@ export const enquiryRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id', EnquiryController.getEnquiry);
   fastify.post('/', EnquiryController.createEnquiry);
   fastify.patch('/:id', EnquiryController.updateEnquiry);
-  fastify.delete('/:id', { preHandler: [requireRole(['admin', 'executive'])] }, EnquiryController.deleteEnquiry);
+  fastify.delete('/:id', EnquiryController.deleteEnquiry);
 
   fastify.post('/:id/status', EnquiryController.changeStatus);
-  fastify.post('/:id/assign', { preHandler: [requireRole(['admin', 'executive'])] }, EnquiryController.assignEnquiry);
-  fastify.post('/bulk-assign', { preHandler: [requireRole(['admin', 'executive'])] }, EnquiryController.bulkAssign);
+  fastify.post('/:id/assign', { preHandler: [requireRole(['admin', 'manager', 'executive', 'branch manager'])] }, EnquiryController.assignEnquiry);
+  fastify.post('/bulk-assign', { preHandler: [requireRole(['admin', 'manager', 'executive', 'branch manager'])] }, EnquiryController.bulkAssign);
 
   fastify.get('/:id/activities', EnquiryController.listActivities);
 };

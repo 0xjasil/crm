@@ -1,4 +1,4 @@
-import type { User, Role, Branch } from '@prisma/client';
+import type { User, Role, Branch } from '@/types/api-models';
 
 export type UserWithRole = User & {
   userRole?: Role | null;

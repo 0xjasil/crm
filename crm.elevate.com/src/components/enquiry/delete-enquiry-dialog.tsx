@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAction } from 'next-safe-action/hooks';
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +13,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { deleteEnquiry } from '@/server/actions/enquiry-action';
+import { deleteEnquiry } from '@/lib/api/enquiry-api';
 
 interface DeleteEnquiryDialogProps {
   enquiryId: string;
@@ -34,35 +33,24 @@ export function DeleteEnquiryDialog({
   onOpenChange: controlledOnOpenChange,
 }: DeleteEnquiryDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   // Use controlled state if provided, otherwise use internal state
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = controlledOnOpenChange || setInternalOpen;
 
-  const { execute: deleteEnquiryAction, isExecuting, result } = useAction(deleteEnquiry);
-
-  // Monitor action results
-  useEffect(() => {
-    if (!isProcessing) return;
-
-    if (result?.data?.success) {
-      toast.success(result.data.message || 'Enquiry deleted successfully');
-      setOpen(false);
-      setIsProcessing(false);
-      onSuccess?.();
-    } else if (result?.serverError) {
-      toast.error(result.serverError);
-      setIsProcessing(false);
-    } else if (result?.validationErrors) {
-      toast.error('Validation failed');
-      setIsProcessing(false);
-    }
-  }, [result, isProcessing, onSuccess, setOpen]);
-
   const handleDelete = async () => {
-    setIsProcessing(true);
-    await deleteEnquiryAction({ id: enquiryId });
+    setIsExecuting(true);
+    try {
+      const result = await deleteEnquiry(enquiryId);
+      toast.success(result.message || 'Enquiry deleted successfully');
+      setOpen(false);
+      onSuccess?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete enquiry');
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   return (
@@ -83,7 +71,7 @@ export function DeleteEnquiryDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isExecuting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleDelete}
+            onClick={(event) => { event.preventDefault(); void handleDelete(); }}
             disabled={isExecuting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >

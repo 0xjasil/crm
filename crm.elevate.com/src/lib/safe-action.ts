@@ -1,117 +1,30 @@
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
 import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { BackendRequestError } from '@/lib/api/backend-server';
 
-// Base action client for public actions
-export const actionClient = createSafeActionClient({
-  handleServerError(e) {
-    const isDbNotice =
-      e.message?.includes("Can't reach database server") ||
-      e.message?.includes('connection') ||
-      e.message?.includes('P1001') ||
-      e.message?.includes('P1002');
+function handleServerError(error: Error) {
+  console.error('Action error:', error.message);
+  return error instanceof BackendRequestError ? error.message : DEFAULT_SERVER_ERROR_MESSAGE;
+}
 
-    if (isDbNotice) {
-      console.warn('[SafeAction] Transient database notice:', e.message);
-    } else {
-      console.error('Action error:', e.message);
-    }
+export const actionClient = createSafeActionClient({ handleServerError });
 
-    if (e.message.includes('Invalid credentials')) {
-      return e.message;
-    }
-
-    if (e.message.includes('Email already exists')) {
-      return e.message;
-    }
-
-    return DEFAULT_SERVER_ERROR_MESSAGE;
-  },
+export const authActionClient = createSafeActionClient({ handleServerError }).use(async ({ next }) => {
+  const session = await auth.api.getSession();
+  if (!session) throw new Error('Unauthorized');
+  return next({ ctx: { user: session.user, session: session.session, userId: session.user.id } });
 });
 
-// Authenticated action client that requires a valid session
-export const authActionClient = createSafeActionClient({
-  handleServerError(e) {
-    const isDbNotice =
-      e.message?.includes("Can't reach database server") ||
-      e.message?.includes('connection') ||
-      e.message?.includes('P1001') ||
-      e.message?.includes('P1002');
-
-    if (isDbNotice) {
-      console.warn('[SafeAction] Transient database notice in auth action:', e.message);
-    } else {
-      console.error('Auth action error:', e.message);
-    }
-    return DEFAULT_SERVER_ERROR_MESSAGE;
-  },
-}).use(async ({ next }) => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    throw new Error('Unauthorized');
-  }
-
-  return next({
-    ctx: {
-      user: session.user,
-      session: session.session,
-      userId: session.user.id,
-    },
-  });
-});
-
-// Role-based action client that requires specific roles
-export const createRoleActionClient = (allowedRoles: string[]) => {
-  return createSafeActionClient({
-    handleServerError(e) {
-      const isDbNotice =
-        e.message?.includes("Can't reach database server") ||
-        e.message?.includes('connection') ||
-        e.message?.includes('P1001') ||
-        e.message?.includes('P1002');
-
-      if (isDbNotice) {
-        console.warn('[SafeAction] Transient database notice in role action:', e.message);
-      } else {
-        console.error('Role action error:', e.message);
-      }
-      return DEFAULT_SERVER_ERROR_MESSAGE;
-    },
-  }).use(async ({ next }) => {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      throw new Error('Unauthorized');
-    }
-
-    // Check if user has required role (you'll implement this based on your role setup)
+export function createRoleActionClient(allowedRoles: string[]) {
+  return createSafeActionClient({ handleServerError }).use(async ({ next }) => {
+    const session = await auth.api.getSession();
+    if (!session) throw new Error('Unauthorized');
     const userRole = session.user.role || 'user';
-
-    if (!allowedRoles.includes(userRole)) {
-      throw new Error('Insufficient permissions');
-    }
-
-    return next({
-      ctx: {
-        user: session.user,
-        session: session.session,
-        userId: session.user.id,
-        userRole,
-      },
-    });
+    if (!allowedRoles.includes(userRole)) throw new Error('Insufficient permissions');
+    return next({ ctx: { user: session.user, session: session.session, userId: session.user.id, userRole } });
   });
-};
+}
 
-// Admin-only actions
 export const adminActionClient = createRoleActionClient(['admin']);
-
-// Executive and Admin actions
 export const executiveActionClient = createRoleActionClient(['admin', 'executive']);
-
-// All roles actions
 export const allRolesActionClient = createRoleActionClient(['admin', 'executive', 'telecaller']);

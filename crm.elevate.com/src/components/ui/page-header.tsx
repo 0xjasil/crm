@@ -17,7 +17,7 @@ export function PageContainer({
     <div
       className={cn(
         'w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6',
-        maxWidth === 'default' && 'max-w-[1600px]',
+        maxWidth === 'default' && 'max-w-[1150px]',
         maxWidth === 'narrow' && 'max-w-5xl',
         maxWidth === 'full' && 'max-w-full',
         className

@@ -1,3 +1,4 @@
+import { moneySchema } from '../../shared/utils/money.schemas.js';
 import { z } from 'zod';
 
 export const admissionFilterSchema = z.object({
@@ -26,11 +27,11 @@ export const createAdmissionSchema = z.object({
   courseId: z.string().min(1, 'Course ID is required'),
   enquiryId: z.string().optional().nullable(),
   agentName: z.string().optional().nullable(),
-  agentCommission: z.coerce.number().optional().nullable(),
+  agentCommission: moneySchema.optional().nullable(),
   handledByUserId: z.string().optional().nullable(),
   status: z.enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']).default('CONFIRMED'),
   initialPayment: z.object({
-    amount: z.coerce.number().min(1),
+    amount: moneySchema.refine((value) => value.greaterThanOrEqualTo(1), "Amount is below the minimum"),
     collectedTowards: z.enum(['ADMISSION_FEE', 'COURSE_FEE', 'SEMESTER_FEE', 'OTHER']).default('ADMISSION_FEE'),
     paymentMode: z.string().optional().nullable(),
     transactionId: z.string().optional().nullable(),
@@ -52,7 +53,7 @@ export const updateAdmissionSchema = z.object({
   additionalNotes: z.string().optional().nullable(),
   courseId: z.string().optional(),
   agentName: z.string().optional().nullable(),
-  agentCommission: z.coerce.number().optional().nullable(),
+  agentCommission: moneySchema.optional().nullable(),
   handledByUserId: z.string().optional().nullable(),
   status: z.enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']).optional(),
   nextDueDate: z.string().or(z.date()).optional().nullable(),

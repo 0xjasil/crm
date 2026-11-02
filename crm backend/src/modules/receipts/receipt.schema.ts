@@ -1,3 +1,4 @@
+import { moneySchema } from '../../shared/utils/money.schemas.js';
 ﻿import { z } from 'zod';
 
 export const receiptFilterSchema = z.object({
@@ -13,7 +14,7 @@ export const receiptFilterSchema = z.object({
 export const createReceiptSchema = z.object({
   admissionId: z.string().min(1, 'Admission ID is required'),
   courseId: z.string().min(1, 'Course ID is required'),
-  amountCollected: z.coerce.number().min(1, 'Amount collected must be greater than 0'),
+  amountCollected: moneySchema.refine((value) => value.greaterThanOrEqualTo(1), 'Amount collected must be greater than 0'),
   collectedTowards: z.enum(['ADMISSION_FEE', 'COURSE_FEE', 'SEMESTER_FEE', 'OTHER']).default('COURSE_FEE'),
   paymentDate: z.string().or(z.date()).default(() => new Date()),
   paymentMode: z.string().optional().nullable(),

@@ -35,7 +35,7 @@ import { updateInstallationProgress } from "@/server/actions/admission-actions";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { AdmissionStatus } from "@prisma/client";
+import { AdmissionStatus } from "@/types/api-models";
 
 export type InstallationStage =
   | "SURVEY_COMPLETED"

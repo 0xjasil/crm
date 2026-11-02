@@ -1,3 +1,4 @@
+import { moneySchema, taxRateSchema } from '../../shared/utils/money.schemas.js';
 ﻿import { z } from 'zod';
 
 export const invoiceFilterSchema = z.object({
@@ -12,7 +13,7 @@ export const invoiceFilterSchema = z.object({
 export const invoiceItemInputSchema = z.object({
   itemDescription: z.string().min(1, 'Item description is required'),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
-  unitPrice: z.coerce.number().min(0, 'Unit price cannot be negative'),
+  unitPrice: moneySchema.refine((value) => value.greaterThanOrEqualTo(0), 'Unit price cannot be negative'),
 });
 
 export const createInvoiceSchema = z.object({
@@ -21,17 +22,17 @@ export const createInvoiceSchema = z.object({
   customerId: z.string().optional(),
   invoiceDate: z.string().or(z.date()).default(() => new Date()),
   dueDate: z.string().or(z.date()).optional().nullable(),
-  taxRate: z.coerce.number().min(0).max(1).default(0.18),
-  discountAmount: z.coerce.number().min(0).default(0),
-  withholdingAmount: z.coerce.number().min(0).default(0),
+  taxRate: taxRateSchema.refine((value) => value.greaterThanOrEqualTo(0), "Amount is below the minimum").refine((value) => value.lessThanOrEqualTo(1), "Amount exceeds the maximum").default(0.18),
+  discountAmount: moneySchema.refine((value) => value.greaterThanOrEqualTo(0), "Amount is below the minimum").default(0),
+  withholdingAmount: moneySchema.refine((value) => value.greaterThanOrEqualTo(0), "Amount is below the minimum").default(0),
   withholdingType: z.enum(['TDS', 'TCS']).optional().nullable(),
-  serviceCharge: z.coerce.number().min(0).default(0),
-  otherCharges: z.coerce.number().min(0).default(0),
+  serviceCharge: moneySchema.refine((value) => value.greaterThanOrEqualTo(0), "Amount is below the minimum").default(0),
+  otherCharges: moneySchema.refine((value) => value.greaterThanOrEqualTo(0), "Amount is below the minimum").default(0),
   status: z.enum(['DRAFT', 'SENT', 'PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED']).default('DRAFT'),
   notes: z.string().optional().nullable(),
   items: z.array(invoiceItemInputSchema).min(1, 'At least one invoice item is required'),
   initialPayment: z.object({
-    amount: z.coerce.number().positive(),
+    amount: moneySchema.refine((value) => value.greaterThan(0), 'Amount must be greater than zero'),
     paymentNumber: z.string().trim().max(64).optional(),
     paymentDate: z.string().or(z.date()),
     paymentMode: z.string().trim().min(1).max(40),
@@ -41,7 +42,7 @@ export const createInvoiceSchema = z.object({
 });
 
 export const createPaymentSchema = z.object({
-  amount: z.coerce.number().positive(),
+  amount: moneySchema.refine((value) => value.greaterThan(0), 'Amount must be greater than zero'),
   paymentNumber: z.string().trim().max(64).optional(),
   paymentDate: z.string().or(z.date()).default(() => new Date()),
   paymentMode: z.string().trim().min(1).max(40),

@@ -43,14 +43,17 @@ import {
   RotateCw,
   BookOpen,
   UserCheck,
+  UserPlus,
 } from "lucide-react";
 import {
   getAdmissions,
   getCoursesForAdmission,
   getEnquirySourcesForAdmission,
   deleteAdmission,
+  getSurveyAssignees,
+  reassignAdmission,
 } from "@/server/actions/admission-actions";
-import { getEnquiry } from "@/server/actions/enquiry";
+import { fetchEnquiry } from "@/lib/api/enquiry-api";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { AdmissionWithRelations, AdmissionStatus } from "@/types/admission";
@@ -66,7 +69,7 @@ const AdmissionFormDialog = dynamic(
   { ssr: false }
 );
 
-import { EnquirySource } from "@prisma/client";
+import { EnquirySource } from "@/types/api-models";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,6 +81,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Enquiry } from "@/types/enquiry";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SimpleCourse {
   id: string;
@@ -103,6 +107,8 @@ type AdmissionListItem = {
     name: string;
     email: string;
   };
+  assignedTo?: { id: string; name: string } | null;
+  assignedToUserId?: string | null;
   [key: string]: any;
 };
 
@@ -116,6 +122,9 @@ export default function AdmissionsPage() {
 
   // Check if current user is admin
   const isAdmin = session?.user?.role === "admin";
+  const normalizedRole = (session?.user?.role || "").toLowerCase();
+  const isManager = normalizedRole === "manager" || normalizedRole === "branch manager";
+  const canReassign = isAdmin || isManager;
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -152,6 +161,10 @@ export default function AdmissionsPage() {
   const [admissionToDelete, setAdmissionToDelete] =
     useState<AdmissionListItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [admissionToAssign, setAdmissionToAssign] = useState<AdmissionListItem | null>(null);
+  const [surveyAssignees, setSurveyAssignees] = useState<{ id: string; name: string }[]>([]);
+  const [assignedToUserId, setAssignedToUserId] = useState("");
+  const [isReassigning, setIsReassigning] = useState(false);
 
   // Enquiry pre-fill state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -165,7 +178,7 @@ export default function AdmissionsPage() {
 
       setIsLoadingEnquiry(true);
       try {
-        const result = await getEnquiry(enquiryId);
+        const result = await fetchEnquiry(enquiryId);
         if (result.success) {
           setEnquiryData(result.data as Enquiry);
           setCreateDialogOpen(true);
@@ -177,7 +190,7 @@ export default function AdmissionsPage() {
         }
       } catch (error) {
         console.error("Error fetching enquiry:", error);
-        toast.error("Failed to fetch enquiry data");
+        toast.error(error instanceof Error ? error.message : "Failed to fetch enquiry data");
       } finally {
         setIsLoadingEnquiry(false);
       }
@@ -278,6 +291,34 @@ export default function AdmissionsPage() {
     }
     setAdmissionToDelete(admission);
     setDeleteDialogOpen(true);
+  };
+
+  const handleOpenReassign = async (admission: AdmissionListItem) => {
+    setAdmissionToAssign(admission);
+    setAssignedToUserId(admission.assignedToUserId || "");
+    const result = await getSurveyAssignees();
+    if (result.data?.success) setSurveyAssignees(result.data.data);
+    else toast.error(result.serverError || "Could not load eligible staff");
+  };
+
+  const handleConfirmReassign = async () => {
+    if (!admissionToAssign || !assignedToUserId) return;
+    setIsReassigning(true);
+    try {
+      const result = await reassignAdmission({ id: admissionToAssign.id, assignedToUserId });
+      if (result.data?.success) {
+        toast.success(result.data.message || "Survey reassigned successfully");
+        setAdmissionToAssign(null);
+        refreshAdmissions();
+      } else {
+        toast.error(result.serverError || "Could not reassign survey");
+      }
+    } catch (error) {
+      console.error("Error reassigning survey:", error);
+      toast.error("Could not reassign survey");
+    } finally {
+      setIsReassigning(false);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -577,6 +618,12 @@ export default function AdmissionsPage() {
                                   Edit Survey
                                 </DropdownMenuItem>
                               )}
+                              {canReassign && (
+                                <DropdownMenuItem onClick={() => void handleOpenReassign(admission)} className="text-xs">
+                                  <UserPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                  Assign / Reassign Staff
+                                </DropdownMenuItem>
+                              )}
                               {isAdmin && (
                                 <>
                                   <DropdownMenuSeparator />
@@ -657,6 +704,34 @@ export default function AdmissionsPage() {
           trigger={null}
         />
       )}
+
+      {/* Assignment Dialog */}
+      <Dialog open={!!admissionToAssign} onOpenChange={(isOpen) => { if (!isOpen && !isReassigning) setAdmissionToAssign(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Survey</DialogTitle>
+            <DialogDescription>
+              Choose a staff member with Site Surveys & Projects access for {admissionToAssign?.candidateName}.
+            </DialogDescription>
+          </DialogHeader>
+          <Select value={assignedToUserId} onValueChange={setAssignedToUserId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select an assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              {surveyAssignees.map((assignee) => (
+                <SelectItem key={assignee.id} value={assignee.id}>{assignee.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdmissionToAssign(null)} disabled={isReassigning}>Cancel</Button>
+            <Button onClick={handleConfirmReassign} disabled={!assignedToUserId || isReassigning}>
+              {isReassigning ? "Saving…" : "Save Assignment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Dialog */}
       {deleteDialogOpen && admissionToDelete && (

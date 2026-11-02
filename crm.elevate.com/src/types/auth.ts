@@ -1,4 +1,4 @@
-import type { session as Session, User } from '@prisma/client';
+import type { Session, User } from '@/types/api-models';
 
 // Session-related types
 export interface SessionResponse {

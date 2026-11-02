@@ -1,5 +1,7 @@
-import fastify, { FastifyInstance } from 'fastify';
+import fastify, { FastifyInstance, LogController } from 'fastify';
 import sensible from '@fastify/sensible';
+import { config } from './config/env.js';
+import { configureRequestLogging, getLoggerOptions } from './config/logging.js';
 import helmet from '@fastify/helmet';
 import prismaPlugin from './plugins/prisma.js';
 import corsPlugin from './plugins/cors.js';
@@ -24,25 +26,15 @@ import { jobOrderRoutes } from './modules/job-orders/job-order.routes.js';
 import { notificationRoutes } from './modules/notifications/notification.routes.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { reportRoutes } from './modules/reports/report.routes.js';
+import { workflowRoutes } from './modules/workflows/workflow.routes.js';
+import { uiRoutes } from './modules/workflows/ui.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
-  const isDev = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
   const app = fastify({
-    logger: isDev
-      ? {
-          transport: {
-            target: 'pino-pretty',
-            options: {
-              translateTime: 'HH:MM:ss Z',
-              ignore: 'pid,hostname',
-            },
-          },
-          level: 'debug',
-        }
-      : {
-          level: 'info',
-        },
+    logger: getLoggerOptions({ nodeEnv: config.nodeEnv, vercel: process.env.VERCEL, logLevel: config.logLevel }),
+    logController: new LogController({ disableRequestLogging: true }),
   });
+  configureRequestLogging(app);
 
   // Core Plugins
   await app.register(sensible);
@@ -80,40 +72,11 @@ export async function buildApp(): Promise<FastifyInstance> {
       await v1.register(notificationRoutes, { prefix: '/notifications' });
       await v1.register(dashboardRoutes, { prefix: '/dashboard' });
       await v1.register(reportRoutes, { prefix: '/reports' });
+      await v1.register(workflowRoutes, { prefix: '/workflows' });
+      await v1.register(uiRoutes, { prefix: '/ui' });
     },
     { prefix: '/api/v1' }
   );
 
   return app;
-}
-
-let appInstance: FastifyInstance | null = null;
-
-export async function getApp(): Promise<FastifyInstance> {
-  if (!appInstance) {
-    appInstance = await buildApp();
-    await appInstance.ready();
-  }
-  return appInstance;
-}
-
-export default async function handler(req: any, res: any) {
-  try {
-    const app = await getApp();
-    await app.ready();
-    app.server.emit('request', req, res);
-  } catch (error) {
-    console.error('Fastify Serverless Handler Error:', error);
-    if (!res.headersSent) {
-      res.statusCode = 500;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(
-        JSON.stringify({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: error instanceof Error ? error.message : String(error),
-        })
-      );
-    }
-  }
 }

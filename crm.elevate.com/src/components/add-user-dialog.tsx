@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { UserForm } from '@/components/user-form';
-import type { Role, Branch } from '@prisma/client';
+import type { Role, Branch } from '@/types/api-models';
 
 interface AddUserDialogProps {
   roles: Role[];

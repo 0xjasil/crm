@@ -1,3 +1,4 @@
+import { decimal } from '../../shared/utils/money.js';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { paginatedResponse, successResponse } from '../../utils/response.js';
 import { createInvoiceSchema, createPaymentSchema, invoiceFilterSchema, invoiceItemInputSchema, paymentSettingsSchema, reminderSettingsSchema, sendInvoiceSchema, updateInvoiceSchema } from './invoice.schema.js';
@@ -150,7 +151,7 @@ export class InvoiceController {
     const { email } = sendInvoiceSchema.parse(request.body ?? {});
     const service = new InvoiceService(request.server.prisma);
     const invoice = await service.getInvoiceById(id);
-    if (invoice.balanceDue <= 0 || invoice.status === 'DRAFT' || invoice.status === 'CANCELLED') {
+    if (decimal(invoice.balanceDue).lessThanOrEqualTo(0) || invoice.status === 'DRAFT' || invoice.status === 'CANCELLED') {
       return reply.badRequest('A reminder can only be sent for an active invoice with a balance due');
     }
     const to = email || invoice.customer?.email;
