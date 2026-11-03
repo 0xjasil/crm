@@ -9,9 +9,14 @@ export const AdmissionActionsRoutes: FastifyPluginAsync = async (app) => {
         return createAdmissionActionsService(app.prisma, request.currentUser).getCurrentUser();
     });
     app.post('/createAdmission', async (request) => {
+        request.log.info({ step: 'access_check_started' }, 'Site survey create step');
         requireWorkflowAccess(request.currentUser, 'admission-actions', 'createAdmission');
+        request.log.info({ step: 'access_check_succeeded' }, 'Site survey create step');
         const body = z.object({ input: z.unknown().optional() }).parse(request.body || {});
-        return createAdmissionActionsService(app.prisma, request.currentUser).createAdmission(body.input);
+        request.log.info({ step: 'service_started' }, 'Site survey create step');
+        const result = await createAdmissionActionsService(app.prisma, request.currentUser).createAdmission(body.input, (step, fields = {}) => request.log.info({ step, ...fields }, 'Site survey create step'));
+        request.log.info({ step: 'completed' }, 'Site survey create step');
+        return result;
     });
     app.post('/updateInstallationProgress', async (request) => {
         requireWorkflowAccess(request.currentUser, 'admission-actions', 'updateInstallationProgress');

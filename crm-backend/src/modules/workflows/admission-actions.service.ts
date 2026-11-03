@@ -122,13 +122,20 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
     const getAdmissionsByEnquirySchema = z.object({
         enquiryId: z.string().min(1, "Enquiry ID is required"),
     });
-    async function createAdmission(input: unknown) {
+    async function createAdmission(input: unknown, logStep?: (step: string, fields?: Record<string, unknown>) => void) {
+        logStep?.('input_validation_started');
         const parsedInput = createAdmissionSchema.parse(input ?? {});
+        logStep?.('input_validation_succeeded', { hasEnquiry: Boolean(parsedInput.enquiryId) });
         try {
+            logStep?.('current_user_lookup_started');
             const user = await getCurrentUser();
+            logStep?.('current_user_lookup_succeeded', { userId: user.id, role: user.role });
             if (isManager(user.role) && !user.branch) throw new Error('A branch is required to assign site surveys');
+            logStep?.('assignee_lookup_started');
             const assignee = await getEligibleAssignee(parsedInput.assignedToUserId, isManager(user.role) ? user.branch : undefined);
+            logStep?.('assignee_lookup_succeeded', { assigneeId: assignee.id });
             // Get course details
+            logStep?.('course_lookup_started', { courseId: parsedInput.courseId });
             const course = await prisma.course.findUnique({
                 where: { id: parsedInput.courseId },
                 select: {
@@ -142,6 +149,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
             if (!course) {
                 throw new Error("Course not found");
             }
+            logStep?.('course_lookup_succeeded', { courseId: course.id });
             // Generate unique admission number
             let admissionNumber: string;
             let attempts = 0;
@@ -158,6 +166,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
             if (attempts >= maxAttempts) {
                 throw new Error("Could not generate unique admission number");
             }
+            logStep?.('admission_number_generated', { attempt: attempts + 1 });
             const eligibleForAgentCommission = user.role && agentRoles.includes(user?.role?.toLocaleLowerCase());
             if (!eligibleForAgentCommission && (parsedInput.agentName || parsedInput.agentCommission)) {
                 throw new Error("You don't have permission to add agent details");
@@ -193,6 +202,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
             if (parsedInput.enquiryId) {
                 admissionData.enquiry = { connect: { id: parsedInput.enquiryId } };
             }
+            logStep?.('database_insert_started');
             const admission = await prisma.admission.create({
                 data: admissionData,
                 include: {
@@ -219,7 +229,10 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
                     },
                 },
             });
+            logStep?.('database_insert_succeeded', { recordId: admission.id });
+            logStep?.('dashboard_cache_invalidation_started');
             await invalidateDashboardCache();
+            logStep?.('dashboard_cache_invalidation_succeeded');
             return {
                 success: true,
                 data: admission,
@@ -227,6 +240,7 @@ export function createAdmissionActionsService(prisma: PrismaClient, currentUser:
             };
         }
         catch (error) {
+            logStep?.('failed', { error: error instanceof Error ? error.message : String(error) });
             console.error("Error creating admission:", error);
             throw new Error("Failed to create admission");
         }

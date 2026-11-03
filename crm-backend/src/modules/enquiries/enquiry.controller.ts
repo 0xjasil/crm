@@ -38,9 +38,12 @@ export class EnquiryController {
   }
 
   static async createEnquiry(request: FastifyRequest, reply: FastifyReply) {
+    request.log.info({ step: 'validation_started' }, 'Inquiry create step');
     const validated = createEnquirySchema.parse(request.body);
+    request.log.info({ step: 'validation_succeeded', hasBranch: Boolean(validated.branchId), hasAssignee: Boolean(validated.assignedToUserId) }, 'Inquiry create step');
     const service = new EnquiryService(request.server.prisma);
-    const created = await service.createEnquiry(validated, request.user);
+    const created = await service.createEnquiry(validated, request.user, (step, fields = {}) => request.log.info({ step, ...fields }, 'Inquiry create step'));
+    request.log.info({ step: 'completed', recordId: created.id }, 'Inquiry create step');
     return reply.status(201).send(successResponse(created, 'Enquiry created successfully'));
   }
 

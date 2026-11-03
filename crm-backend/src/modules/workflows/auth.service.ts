@@ -36,25 +36,33 @@ export function createAuthService(prisma: PrismaClient, currentUser: WorkflowUse
         }
     }
     const createUserActionSchema = userFormSchema;
-    async function createUserAction(input: unknown) {
+    async function createUserAction(input: unknown, logStep?: (step: string, fields?: Record<string, unknown>) => void) {
+        logStep?.('input_validation_started');
         const { name, email, password, role, branch, permissions } = createUserActionSchema.parse(input ?? {});
+        logStep?.('input_validation_succeeded', { role });
         try {
             const normalizedEmail = email.toLowerCase().trim();
             // Check duplicate early to return clean validation error
+            logStep?.('duplicate_email_check_started');
             const existing = await prisma.user.findUnique({
                 where: { email: normalizedEmail },
             });
             if (existing) {
                 throw new ConflictError('Email already exists');
             }
+            logStep?.('duplicate_email_check_succeeded');
+            logStep?.('standard_roles_sync_started');
             await ensureStandardRolesExist();
+            logStep?.('standard_roles_sync_succeeded');
             const defaultPos = SOFTWARE_POSITIONS.find((p) => p.id === role);
             const effectivePermissions = permissions && permissions.length > 0
                 ? permissions
                 : defaultPos?.defaultPermissions || ['dashboard'];
             const hashedPassword = await bcrypt.hash(password, 10);
+            logStep?.('password_hash_generated');
             // Create user, custom role (if customized), and credential account record atomically
             const createdUser = await prisma.$transaction(async (tx) => {
+                logStep?.('transaction_started');
                 let roleRecord = await tx.role.findFirst({
                     where: {
                         OR: [{ id: `role_${role}` }, { name: role }],
@@ -73,6 +81,7 @@ export function createAuthService(prisma: PrismaClient, currentUser: WorkflowUse
                         emailVerified: true,
                     },
                 });
+                logStep?.('user_row_created', { userId: newUser.id });
                 let targetRoleId = roleRecord?.id;
                 if (isCustomPermissions) {
                     const customRole = await tx.role.create({
@@ -84,6 +93,7 @@ export function createAuthService(prisma: PrismaClient, currentUser: WorkflowUse
                             updatedAt: new Date(),
                         },
                     });
+                    logStep?.('custom_role_created', { roleId: customRole.id });
                     targetRoleId = customRole.id;
                 }
                 if (targetRoleId) {
@@ -93,6 +103,7 @@ export function createAuthService(prisma: PrismaClient, currentUser: WorkflowUse
                             roleId: targetRoleId,
                         },
                     });
+                    logStep?.('user_role_linked', { roleId: targetRoleId });
                 }
                 // Create credential account record for Better-Auth compatibility
                 await tx.account.create({
@@ -105,11 +116,13 @@ export function createAuthService(prisma: PrismaClient, currentUser: WorkflowUse
                         updatedAt: new Date(),
                     },
                 });
+                logStep?.('credential_account_created');
                 return tx.user.findUnique({
                     where: { id: newUser.id },
                     include: { userRole: true },
                 });
             }, { maxWait: 15000, timeout: 30000 });
+            logStep?.('transaction_succeeded', { userId: createdUser?.id });
             if (!createdUser) {
                 throw new BadRequestError('User could not be created');
             }
@@ -121,6 +134,7 @@ export function createAuthService(prisma: PrismaClient, currentUser: WorkflowUse
             };
         }
         catch (error: any) {
+            logStep?.('failed', { error: error instanceof Error ? error.message : String(error), code: error && typeof error === 'object' && 'code' in error ? error.code : undefined });
             console.error('Create user action error:', error);
             if (error instanceof AppError)
                 throw error;

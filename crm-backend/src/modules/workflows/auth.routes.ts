@@ -4,9 +4,14 @@ import { createAuthService } from './auth.service.js';
 import { requireWorkflowAccess } from './workflow-access.js';
 export const AuthRoutes: FastifyPluginAsync = async (app) => {
     app.post('/createUserAction', async (request) => {
+        request.log.info({ step: 'access_check_started' }, 'User create step');
         requireWorkflowAccess(request.currentUser, 'auth', 'createUserAction');
+        request.log.info({ step: 'access_check_succeeded' }, 'User create step');
         const body = z.object({ input: z.unknown().optional() }).parse(request.body || {});
-        return createAuthService(app.prisma, request.currentUser).createUserAction(body.input);
+        request.log.info({ step: 'service_started' }, 'User create step');
+        const result = await createAuthService(app.prisma, request.currentUser).createUserAction(body.input, (step, fields = {}) => request.log.info({ step, ...fields }, 'User create step'));
+        request.log.info({ step: 'completed', userId: result.user?.id }, 'User create step');
+        return result;
     });
     app.post('/updateUserBranchAction', async (request) => {
         requireWorkflowAccess(request.currentUser, 'auth', 'updateUserBranchAction');

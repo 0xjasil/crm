@@ -146,8 +146,10 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
             };
         }
     }
-    async function createProposal(input: unknown) {
+    async function createProposal(input: unknown, logStep?: (step: string, fields?: Record<string, unknown>) => void) {
+        logStep?.('input_validation_started');
         const parsedInput = createProposalSchema.parse(input ?? {});
+        logStep?.('input_validation_succeeded', { itemCount: parsedInput.items.length, hasEnquiry: Boolean(parsedInput.enquiryId) });
         try {
             let currentUser: any = null;
             try {
@@ -156,7 +158,10 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
             catch {
                 // Fallback for unauthenticated or system context
             }
+            logStep?.('current_user_resolved', { userId: currentUser?.id });
+            logStep?.('proposal_number_generation_started');
             const proposalNo = await generateProposalNumber();
+            logStep?.('proposal_number_generated', { proposalNo });
             // Resolve branch: prioritize passed branch, then currentUser branch, then fallback
             const effectiveBranch = parsedInput.branch && parsedInput.branch.trim() !== ''
                 ? parsedInput.branch.trim()
@@ -186,6 +191,7 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
             const proposalId = `prop_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             let savedProposal: any = null;
             {
+                logStep?.('database_insert_started', { itemCount: processedItems.length });
                 savedProposal = await prisma.proposal.create({
                     data: {
                         id: proposalId,
@@ -225,9 +231,11 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
                     },
                 });
             }
+            logStep?.('database_insert_succeeded', { recordId: savedProposal.id, proposalNo });
             // If created from an enquiry, optionally update enquiry lastContactDate
             if (parsedInput.enquiryId) {
                 try {
+                    logStep?.('enquiry_update_started');
                     await prisma.enquiry.update({
                         where: { id: parsedInput.enquiryId },
                         data: {
@@ -237,8 +245,10 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
                             },
                         },
                     });
+                    logStep?.('enquiry_update_succeeded');
                 }
                 catch (e) {
+                    logStep?.('enquiry_update_failed', { error: e instanceof Error ? e.message : String(e) });
                     console.warn('Could not update enquiry contact date:', e);
                 }
             }
@@ -249,6 +259,7 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
             };
         }
         catch (error) {
+            logStep?.('failed', { error: error instanceof Error ? error.message : String(error), code: error && typeof error === 'object' && 'code' in error ? error.code : undefined });
             console.error('Error creating proposal:', error);
             if (error instanceof Error && 'code' in error && error.code === 'P2021') {
                 throw new AppError('Proposal tables are missing. Apply the proposal-table database repair.', 503, 'DATABASE_SCHEMA_MISSING');

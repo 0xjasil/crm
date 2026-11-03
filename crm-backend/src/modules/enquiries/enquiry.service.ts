@@ -133,13 +133,15 @@ export class EnquiryService {
         id: string;
         role: string | null;
         branch: string | null;
-    }) {
+    }, logStep?: (step: string, fields?: Record<string, unknown>) => void) {
         const role = (user.role || '').toLowerCase();
         const branchScoped = ['telecaller', 'executive', 'manager', 'branch manager'].includes(role);
         const branchId = branchScoped && user.branch ? user.branch : input.branchId;
+        logStep?.('scope_resolved', { hasBranch: Boolean(branchId), role: user.role });
         if (!branchId)
             throw new BadRequestError('Branch is required');
         const assignedToUserId = input.assignedToUserId || (role === 'telecaller' ? user.id : null);
+        logStep?.('database_insert_started');
         const enquiry = await this.prisma.enquiry.create({
             data: {
                 ...input,
@@ -153,7 +155,9 @@ export class EnquiryService {
                 assignedByUserId: assignedToUserId ? user.id : null,
             },
         });
+        logStep?.('database_insert_succeeded', { recordId: enquiry.id });
         if (input.assignedToUserId) {
+            logStep?.('assignment_notification_started');
             await this.prisma.notification.create({
                 data: {
                     userId: input.assignedToUserId,
@@ -163,6 +167,7 @@ export class EnquiryService {
                     link: `/enquiries/${enquiry.id}`,
                 },
             });
+            logStep?.('assignment_notification_succeeded');
         }
         return enquiry;
     }
