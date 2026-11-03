@@ -31,7 +31,6 @@ import { formatCurrency } from '@/lib/utils';
 import { InvoiceItemsSection } from '@/components/invoice/invoice-items-section';
 import { InvoiceTotals } from '@/components/invoice/invoice-totals';
 import { InvoiceStatusUpdate } from '@/components/invoice/invoice-status-update';
-import { InvoiceFormDialog } from '@/components/invoice/invoice-form-dialog';
 import { InvoicePaymentHistory } from '@/components/invoice/invoice-payment-history';
 import { RecordPaymentDialog, RemindersDialog } from '@/components/invoice/invoice-payments';
 import { Input } from '@/components/ui/input';
@@ -47,7 +46,6 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<InvoiceWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
@@ -302,7 +300,7 @@ export default function InvoiceDetailPage() {
         </div>
 
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:max-w-[680px] sm:flex-wrap sm:justify-end">
-          <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}><Pencil className="mr-1.5 size-4" />Edit</Button>
+          <Button size="sm" variant="outline" onClick={() => router.push(`/invoices/${invoice.id}/edit`)}><Pencil className="mr-1.5 size-4" />Edit</Button>
           <Button size="sm" variant="outline" onClick={() => { setSendEmail(invoice.customer?.email || ''); setSendOpen(true); }}><Send className="mr-1.5 size-4" />Send</Button>
           <Button size="sm" variant="outline" onClick={() => void handleShare()}><Share2 className="mr-1.5 size-4" />Share</Button>
           <Button size="sm" variant="outline" onClick={() => setRemindersOpen(true)}><Bell className="mr-1.5 size-4" />Reminders</Button>
@@ -387,7 +385,6 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
       </div>
-      <InvoiceFormDialog mode="edit" invoice={invoice} open={editOpen} onOpenChange={setEditOpen} onSuccess={fetchInvoice} />
       <RecordPaymentDialog open={paymentOpen} onOpenChange={setPaymentOpen} invoiceId={invoice.id} customerName={invoice.customer?.name || invoice.billedTo.split('\n')[0]} balanceDue={Number(invoice.balanceDue ?? invoice.totalAmount - (invoice.amountPaid ?? 0))} onSuccess={fetchInvoice} />
       <RemindersDialog open={remindersOpen} onOpenChange={setRemindersOpen} invoiceId={invoice.id} remindersEnabled={invoice.remindersEnabled ?? false} reminderRules={invoice.reminderRules ?? []} email={invoice.customer?.email} onSuccess={fetchInvoice} />
       <Dialog open={sendOpen} onOpenChange={(open) => { if (!isSending) setSendOpen(open); }}>

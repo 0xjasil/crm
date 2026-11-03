@@ -5,9 +5,10 @@ import type { PrismaClient } from '@prisma/client';
 import { InvoiceService } from './invoice.service.js';
 import { updateInvoiceSchema } from './invoice.schema.js';
 
-function fixture(amountPaid = 0) {
+function fixture(amountPaid = 0, duplicateInvoiceNumber?: string) {
   let saved: Record<string, any> | undefined;
   const existing = {
+    invoiceNumber: 'INV-OLD', customerId: 'customer-old', dueDate: new Date('2026-12-01T00:00:00.000Z'),
     subtotal: 1000, taxRate: 0.18, taxAmount: 180, totalAmount: 1180,
     serviceCharge: 0, otherCharges: 0, discountAmount: 0,
     withholdingAmount: 0, amountPaid, payments: [],
@@ -15,7 +16,10 @@ function fixture(amountPaid = 0) {
   const tx = {
     $queryRaw: async () => [],
     invoice: {
-      findUnique: async () => existing,
+      findUnique: async ({ where }: { where?: { id?: string; invoiceNumber?: string } } = {}) => {
+        if (where?.invoiceNumber) return where.invoiceNumber === duplicateInvoiceNumber ? { id: 'another-invoice' } : null;
+        return existing;
+      },
       update: async ({ data }: { data: Record<string, any> }) => { saved = data; return data; },
       findUniqueOrThrow: async () => saved,
     },
@@ -75,5 +79,28 @@ test('tax reduction updates a partially paid invoice balance', async () => {
 test('tax reduction cannot reduce the invoice below payments already recorded', async () => {
   const { service, saved } = fixture(1100);
   await assert.rejects(service.updateInvoice('invoice-1', updateInvoiceSchema.parse({ taxRate: 0 }), 'admin-1'), /already paid/);
+  assert.equal(saved(), undefined);
+});
+
+test('invoice edits update the invoice number, customer, and clear the due date', async () => {
+  const { service, saved } = fixture();
+  await service.updateInvoice('invoice-1', updateInvoiceSchema.parse({
+    invoiceNumber: 'INV-NEW', customerId: 'customer-new', billedTo: 'New Customer', dueDate: null,
+  }), 'admin-1');
+  assert.equal(saved()?.invoiceNumber, 'INV-NEW');
+  assert.equal(saved()?.customerId, 'customer-new');
+  assert.equal(saved()?.billedTo, 'New Customer');
+  assert.equal(saved()?.dueDate, null);
+});
+
+test('duplicate invoice numbers are rejected', async () => {
+  const { service, saved } = fixture(0, 'INV-TAKEN');
+  await assert.rejects(service.updateInvoice('invoice-1', updateInvoiceSchema.parse({ invoiceNumber: 'INV-TAKEN' }), 'admin-1'), /already in use/);
+  assert.equal(saved(), undefined);
+});
+
+test('payment-derived statuses cannot be assigned without a recorded payment', async () => {
+  const { service, saved } = fixture();
+  await assert.rejects(service.updateInvoice('invoice-1', updateInvoiceSchema.parse({ status: 'PAID' }), 'admin-1'), /Record a payment/);
   assert.equal(saved(), undefined);
 });

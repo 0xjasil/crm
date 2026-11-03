@@ -34,10 +34,6 @@ import { PageContainer, PageHeader } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
 
-const InvoiceFormDialog = dynamic(
-  () => import('@/components/invoice/invoice-form-dialog').then((mod) => mod.InvoiceFormDialog),
-  { ssr: false }
-);
 const DeleteInvoiceDialog = dynamic(
   () => import('@/components/invoice/delete-invoice-dialog').then((mod) => mod.DeleteInvoiceDialog),
   { ssr: false }
@@ -62,10 +58,6 @@ export default function InvoicesPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, pageSize]);
-
-  // Edit dialog state
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithItems | null>(null);
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -129,8 +121,7 @@ export default function InvoicesPage() {
   };
 
   const handleEditInvoice = (invoice: InvoiceWithItems) => {
-    setSelectedInvoice(invoice);
-    setEditDialogOpen(true);
+    router.push(`/invoices/${invoice.id}/edit`);
   };
 
   const handleDeleteInvoice = (invoiceId: string, invoiceNumber: string) => {
@@ -357,17 +348,6 @@ export default function InvoicesPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Edit Dialog - Outside of dropdown to prevent unmounting */}
-      {selectedInvoice && (
-        <InvoiceFormDialog
-          mode="edit"
-          invoice={selectedInvoice}
-          onSuccess={refreshInvoices}
-          open={editDialogOpen}
-          onOpenChange={setEditDialogOpen}
-        />
-      )}
 
       {/* Delete Dialog - Outside of dropdown to prevent unmounting */}
       {invoiceToDelete && (

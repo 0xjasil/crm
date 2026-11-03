@@ -25,10 +25,10 @@ export type CreateInvoiceCustomerInput = {
 
 export type CreateInvoiceInput = {
   invoiceNumber?: string;
-  customerId?: string;
+  customerId?: string | null;
   billedTo: string;
   invoiceDate: string;
-  dueDate?: string;
+  dueDate?: string | null;
   notes?: string;
   taxRate: number;
   discountAmount: number;
@@ -36,7 +36,7 @@ export type CreateInvoiceInput = {
   withholdingType?: 'TDS' | 'TCS' | null;
   serviceCharge: number;
   otherCharges: number;
-  status: 'DRAFT' | 'SENT';
+  status: 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
   initialPayment?: Omit<PaymentInput, 'notes'>;
   items: Array<{ itemDescription: string; quantity: number; unitPrice: number }>;
 };

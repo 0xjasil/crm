@@ -13,13 +13,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { createInvoiceCustomer as createInvoiceCustomerRequest, createInvoiceCustomerFromAdmission, fetchInvoiceCustomers, getPaymentNumberPreview, InvoiceCustomer, saveInvoice as saveInvoiceRequest, sendInvoiceEmail } from '@/lib/api/invoice-api';
+import { createInvoiceCustomer as createInvoiceCustomerRequest, createInvoiceCustomerFromAdmission, fetchInvoiceCustomers, getPaymentNumberPreview, getInvoiceRecord, InvoiceCustomer, saveInvoice as saveInvoiceRequest, sendInvoiceEmail, updateInvoiceRecord } from '@/lib/api/invoice-api';
 import { getInvoiceProductCatalog, InvoiceProductItem, ProposalMatch, RequiredCapacity } from '@/server/actions/invoice-catalog-actions';
 import { PaymentNumberSettingsDialog } from '@/components/invoice/invoice-payments';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
+import { InvoiceStatus } from '@/types/invoice';
 
 type Customer = InvoiceCustomer;
 type InvoiceItem = { id: number; description: string; quantity: number; rate: number; discount: number; rateLocked?: boolean };
@@ -72,7 +74,7 @@ function InvoiceItemRow({ item, catalog, onChange, onRemove, onEnter }: { item: 
   </tr>;
 }
 
-function TotalsPanel({ subtotal, taxPercent, setTaxPercent, taxAmount, discount, setDiscount, discountMode, setDiscountMode, shipping, setShipping, adjustment, setAdjustment, total, amountReceived, balanceDue }: { subtotal: number; taxPercent: number; setTaxPercent: (value: number) => void; taxAmount: number; discount: number; setDiscount: (value: number) => void; discountMode: 'percent' | 'amount'; setDiscountMode: (value: 'percent' | 'amount') => void; shipping: number; setShipping: (value: number) => void; adjustment: number; setAdjustment: (value: number) => void; total: number; amountReceived: number; balanceDue: number }) {
+function TotalsPanel({ subtotal, taxPercent, setTaxPercent, taxAmount, discount, setDiscount, discountMode, setDiscountMode, shipping, setShipping, adjustment, setAdjustment, withholdingAmount, setWithholdingAmount, withholdingType, setWithholdingType, total, amountReceived, balanceDue }: { subtotal: number; taxPercent: number; setTaxPercent: (value: number) => void; taxAmount: number; discount: number; setDiscount: (value: number) => void; discountMode: 'percent' | 'amount'; setDiscountMode: (value: 'percent' | 'amount') => void; shipping: number; setShipping: (value: number) => void; adjustment: number; setAdjustment: (value: number) => void; withholdingAmount: number; setWithholdingAmount: (value: number) => void; withholdingType: 'TDS' | 'TCS' | null; setWithholdingType: (value: 'TDS' | 'TCS' | null) => void; total: number; amountReceived: number; balanceDue: number }) {
   return <div className="ml-auto max-w-md rounded-lg border bg-muted/20 p-5">
     <div className="space-y-3 text-sm">
       <div className="flex justify-between"><span className="text-muted-foreground">Sub Total</span><span className="tabular-nums">{currency(subtotal)}</span></div>
@@ -80,6 +82,7 @@ function TotalsPanel({ subtotal, taxPercent, setTaxPercent, taxAmount, discount,
       <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Tax ({taxPercent.toFixed(2)}%)</span><div className="flex w-40 items-center gap-2"><Input aria-label="Invoice tax percentage" type="number" min="0" max="100" step="0.01" value={taxPercent} onChange={(e) => setTaxPercent(Math.min(100, Math.max(0, Number(e.target.value))))} className="h-8 pr-7 text-right" /><span className="-ml-8 text-xs text-muted-foreground">%</span><span className="min-w-24 text-right tabular-nums">{currency(taxAmount)}</span></div></div>
       <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-1 text-muted-foreground">Shipping Charges <Info className="size-3.5" /></span><Input aria-label="Shipping charges" type="number" value={shipping || ''} onChange={(e) => setShipping(Number(e.target.value))} className="h-8 w-40 text-right" /></div>
       <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Other Charges</span><Input aria-label="Other charges" type="number" value={adjustment || ''} onChange={(e) => setAdjustment(Number(e.target.value))} className="h-8 w-40 text-right" /></div>
+      <div className="grid gap-2 border-t pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><label htmlFor="withholding-type" className="text-muted-foreground">Withholding</label><div className="flex gap-2"><select id="withholding-type" aria-label="Withholding type" value={withholdingType || 'none'} onChange={(e) => { const nextType = e.target.value === 'TDS' || e.target.value === 'TCS' ? e.target.value : null; setWithholdingType(nextType); if (!nextType) setWithholdingAmount(0); }} className="h-8 rounded-md border border-input bg-background px-2 text-xs"><option value="none">None</option><option value="TDS">TDS</option><option value="TCS">TCS</option></select><Input aria-label="Withholding amount" type="number" min="0" step="0.01" value={withholdingAmount || ''} onChange={(e) => setWithholdingAmount(Number(e.target.value))} className="h-8 w-32 text-right" /></div></div>
       <div className="flex items-center justify-between border-t pt-3"><span className="font-semibold">Total</span><span className="text-xl font-semibold tabular-nums">{currency(total)}</span></div>
       <div className="flex items-center justify-between text-xs"><span className="text-muted-foreground">Amount Received</span><span className="tabular-nums">{currency(amountReceived)}</span></div>
       <div className="flex items-center justify-between font-medium"><span>Balance Due</span><span className="tabular-nums">{currency(balanceDue)}</span></div>
@@ -88,7 +91,7 @@ function TotalsPanel({ subtotal, taxPercent, setTaxPercent, taxAmount, discount,
   </div>;
 }
 
-export function NewInvoiceForm() {
+export function NewInvoiceForm({ mode = 'create', invoiceId }: { mode?: 'create' | 'edit'; invoiceId?: string }) {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [catalog, setCatalog] = useState<InvoiceProductItem[]>([]);
@@ -110,8 +113,13 @@ export function NewInvoiceForm() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatus>(InvoiceStatus.DRAFT);
+  const [invoiceHasPayments, setInvoiceHasPayments] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(mode === 'edit');
+  const [editingInvoice, setEditingInvoice] = useState<Record<string, any> | null>(null);
+  const initializedInvoiceId = useRef<string | null>(null);
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
-  const [dueDate, setDueDate] = useState<Date>(addDays(new Date(), 30));
+  const [dueDate, setDueDate] = useState<Date | null>(addDays(new Date(), 30));
   const [term, setTerm] = useState('Net 30');
   const [items, setItems] = useState<InvoiceItem[]>([blankItem(1)]);
   const [nextId, setNextId] = useState(2);
@@ -120,6 +128,8 @@ export function NewInvoiceForm() {
   const [taxPercent, setTaxPercent] = useState(0);
   const [shipping, setShipping] = useState(0);
   const [adjustment, setAdjustment] = useState(0);
+  const [withholdingAmount, setWithholdingAmount] = useState(0);
+  const [withholdingType, setWithholdingType] = useState<'TDS' | 'TCS' | null>(null);
   const [gstin, setGstin] = useState('');
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState(false);
@@ -135,7 +145,8 @@ export function NewInvoiceForm() {
   const discountAmount = Math.min(subtotal, discountMode === 'percent' ? subtotal * discount / 100 : discount);
   const taxableSubtotal = Math.max(0, subtotal - discountAmount);
   const taxAmount = taxableSubtotal * taxPercent / 100;
-  const payableTotal = taxableSubtotal + taxAmount + shipping + adjustment;
+  const effectiveWithholdingAmount = Math.min(taxableSubtotal, withholdingAmount);
+  const payableTotal = Math.max(0, taxableSubtotal + taxAmount + shipping + adjustment - effectiveWithholdingAmount);
   const hasDescription = items.some((item) => item.description.trim() && Number.isInteger(item.quantity) && item.quantity > 0);
   useEffect(() => {
     let active = true;
@@ -155,6 +166,56 @@ export function NewInvoiceForm() {
       .finally(() => { if (active) setCustomersLoading(false); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'edit' || !invoiceId) return;
+    let active = true;
+    getInvoiceRecord(invoiceId).then((record) => { if (active) setEditingInvoice(record); }).catch((error) => {
+      if (!active) return;
+      toast.error(error instanceof Error ? error.message : 'Could not load invoice.');
+      setInvoiceLoading(false);
+    });
+    return () => { active = false; };
+  }, [mode, invoiceId]);
+
+  useEffect(() => {
+    if (mode !== 'edit' || !editingInvoice || customersLoading || initializedInvoiceId.current === invoiceId) return;
+    const currentCustomer = editingInvoice.customer as Record<string, any> | null;
+    let selectedCustomer: InvoiceCustomer | null = currentCustomer ? customers.find((entry) => entry.id === currentCustomer.id) || null : null;
+    if (!selectedCustomer && currentCustomer) {
+      selectedCustomer = {
+        id: currentCustomer.id,
+        name: currentCustomer.name || String(editingInvoice.billedTo || '').split('\n')[0],
+        email: currentCustomer.email || '', phone: currentCustomer.phone || '', address: currentCustomer.address || '',
+        state: currentCustomer.state || '', gstin: currentCustomer.gstin || '', savedCustomer: true,
+      };
+      setCustomers((current) => [...current, selectedCustomer!]);
+    }
+    setCustomer(selectedCustomer);
+    setGstin(currentCustomer?.gstin || '');
+    setInvoiceNumber(String(editingInvoice.invoiceNumber || ''));
+    setNumberMode('manual');
+    setInvoiceDate(new Date(editingInvoice.invoiceDate));
+    setDueDate(editingInvoice.dueDate ? new Date(editingInvoice.dueDate) : null);
+    setTerm('Custom');
+    const savedItems = (editingInvoice.items || []).map((item: Record<string, any>, index: number) => ({ id: index + 1, description: String(item.itemDescription || ''), quantity: Number(item.quantity) || 1, rate: Number(item.unitPrice) || 0, discount: 0 }));
+    setItems(savedItems.length ? savedItems : [blankItem(1)]);
+    setNextId(savedItems.length + 1);
+    setDiscount(Number(editingInvoice.discountAmount) || 0);
+    setDiscountMode('amount');
+    setTaxPercent((Number(editingInvoice.taxRate) || 0) * 100);
+    setShipping(Number(editingInvoice.serviceCharge) || 0);
+    setAdjustment(Number(editingInvoice.otherCharges) || 0);
+    setWithholdingAmount(Number(editingInvoice.withholdingAmount) || 0);
+    setWithholdingType(editingInvoice.withholdingType === 'TDS' || editingInvoice.withholdingType === 'TCS' ? editingInvoice.withholdingType : null);
+    setInvoiceStatus((editingInvoice.status as InvoiceStatus) || InvoiceStatus.DRAFT);
+    setInvoiceHasPayments(Number(editingInvoice.amountPaid) > 0 || Boolean(editingInvoice.payments?.length));
+    setSubject('');
+    setCustomerNotes(String(editingInvoice.notes || ''));
+    setInvoiceTerms('');
+    initializedInvoiceId.current = invoiceId || null;
+    setInvoiceLoading(false);
+  }, [mode, editingInvoice, customers, customersLoading, invoiceId]);
 
   useEffect(() => {
     if (!customer) return;
@@ -226,12 +287,14 @@ export function NewInvoiceForm() {
     toast.success(`${match.name} added to the invoice.`);
     return true;
   }, [catalog, items, nextId]);
-  const askLeave = (destination: string) => { if (window.confirm('Discard this invoice? Your unsaved changes will be lost.')) router.push(destination); };
-  const saveInvoice = async (status: 'DRAFT' | 'SENT') => {
+  const leaveDestination = mode === 'edit' && invoiceId ? `/invoices/${invoiceId}` : '/invoices';
+  const askLeave = (destination: string) => { if (window.confirm('Discard your unsaved invoice changes?')) router.push(destination); };
+  const saveInvoice = async (creationStatus: 'DRAFT' | 'SENT') => {
     setErrors(true);
     if (!customer || !hasDescription) { toast.error(!customer ? 'Select a customer before saving.' : 'Add at least one item with a description.'); return; }
-    if (numberMode === 'manual' && !invoiceNumber.trim()) { toast.error('Enter an invoice number or choose auto-generate.'); return; }
-    if (receivedPayment && (!Number.isFinite(Number(receivedAmount)) || Number(receivedAmount) <= 0 || Number(receivedAmount) > payableTotal)) { toast.error('Amount received must be greater than zero and no more than the invoice total.'); return; }
+    if ((mode === 'edit' || numberMode === 'manual') && !invoiceNumber.trim()) { toast.error('Enter an invoice number.'); return; }
+    if (mode === 'edit' && payableTotal < (Number(editingInvoice?.amountPaid) || 0)) { toast.error('Invoice total cannot be lower than payments already recorded.'); return; }
+    if (mode === 'create' && receivedPayment && (!Number.isFinite(Number(receivedAmount)) || Number(receivedAmount) <= 0 || Number(receivedAmount) > payableTotal)) { toast.error('Amount received must be greater than zero and no more than the invoice total.'); return; }
     setBusy(true);
     try {
       let invoiceCustomer = customer;
@@ -241,21 +304,41 @@ export function NewInvoiceForm() {
         setCustomer(invoiceCustomer);
         setCustomers((current) => [...current.filter((entry) => entry.id !== invoiceCustomer.id && entry.id !== customer.id), invoiceCustomer].sort((a, b) => a.name.localeCompare(b.name)));
       }
+      if (mode === 'edit' && !invoiceCustomer.savedCustomer) {
+        const saved = await createInvoiceCustomerRequest({ name: invoiceCustomer.name, email: invoiceCustomer.email || undefined, phone: invoiceCustomer.phone || undefined, address: invoiceCustomer.address || undefined, state: invoiceCustomer.state || undefined, gstin: invoiceCustomer.gstin || undefined });
+        invoiceCustomer = { ...saved, email: saved.email || '', phone: saved.phone || '', address: saved.address || '', state: saved.state || '', gstin: saved.gstin || '', savedCustomer: true };
+        setCustomer(invoiceCustomer);
+        setCustomers((current) => [...current.filter((entry) => entry.id !== invoiceCustomer.id), invoiceCustomer].sort((a, b) => a.name.localeCompare(b.name)));
+      }
       const billedTo = [invoiceCustomer.name, invoiceCustomer.address, invoiceCustomer.email, invoiceCustomer.phone, gstin ? `GSTIN: ${gstin}` : ''].filter(Boolean).join('\n');
-      const invoice = await saveInvoiceRequest({
-        ...(numberMode === 'manual' ? { invoiceNumber: invoiceNumber.trim() } : {}),
+      const payload = {
+        ...(mode === 'edit' || numberMode === 'manual' ? { invoiceNumber: invoiceNumber.trim() } : {}),
         billedTo,
-        ...(invoiceCustomer.savedCustomer ? { customerId: invoiceCustomer.id } : {}),
+        customerId: invoiceCustomer.savedCustomer ? invoiceCustomer.id : null,
         invoiceDate: invoiceDate.toISOString(),
-        dueDate: dueDate.toISOString(),
+        dueDate: dueDate?.toISOString() || null,
         notes: [subject.trim(), customerNotes.trim(), invoiceTerms.trim() ? `Terms & Conditions:\n${invoiceTerms.trim()}` : ''].filter(Boolean).join('\n\n'),
         taxRate: taxPercent / 100,
         discountAmount,
-        withholdingAmount: 0,
-        withholdingType: null,
+        withholdingAmount,
+        withholdingType,
         serviceCharge: shipping,
         otherCharges: adjustment,
-        status: status === 'SENT' ? 'DRAFT' : status,
+        status: mode === 'edit' ? invoiceStatus : creationStatus === 'SENT' ? 'DRAFT' : creationStatus,
+        items: items.filter((entry) => entry.description.trim() && entry.quantity > 0).map((item) => ({
+          itemDescription: item.description.trim(),
+          quantity: Math.max(1, Math.round(item.quantity)),
+          unitPrice: item.rate * (1 - item.discount / 100),
+        })),
+      };
+      if (mode === 'edit' && invoiceId) {
+        await updateInvoiceRecord(invoiceId, payload);
+        toast.success('Invoice updated successfully.');
+        router.push(`/invoices/${invoiceId}`);
+        return;
+      }
+      const invoice = await saveInvoiceRequest({
+        ...payload,
         ...(receivedPayment ? { initialPayment: {
           amount: Number(receivedAmount || payableTotal.toFixed(2)),
           ...(!paymentAutoGenerate ? { paymentNumber: receivedPaymentNumber.trim() } : {}),
@@ -264,30 +347,28 @@ export function NewInvoiceForm() {
           depositTo: receivedDepositTo,
           referenceNumber: receivedReference,
         } } : {}),
-        items: items.filter((entry) => entry.description.trim() && entry.quantity > 0).map((item) => ({
-          itemDescription: item.description.trim(),
-          quantity: Math.max(1, Math.round(item.quantity)),
-          unitPrice: item.rate * (1 - item.discount / 100),
-        })),
       });
       setInvoiceNumber(invoice.invoiceNumber);
       setCreatedId(invoice.id);
-      if (status === 'SENT') { setSendEmail(invoiceCustomer.email); setSendOpen(true); toast.success('Invoice saved. Review the recipient before sending.'); }
+      if (creationStatus === 'SENT') { setSendEmail(invoiceCustomer.email); setSendOpen(true); toast.success('Invoice saved. Review the recipient before sending.'); }
       else { toast.success('Invoice saved as draft.'); router.push(`/invoices/${invoice.id}`); }
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save invoice.'); }
     finally { setBusy(false); }
   };
 
+  if (invoiceLoading) return <PageContainer><div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground">Loading invoice details…</div></PageContainer>;
+
   return <PageContainer className="pb-4">
-    <PageHeader title="New Invoice" description="Create an invoice for a customer using solar system packages, components, and proposal items." actions={<Button type="button" variant="outline" onClick={() => askLeave('/invoices')}><ArrowLeft className="mr-2 size-4" /> Back to invoices</Button>} />
+    <PageHeader title={mode === 'edit' ? `Edit Invoice ${invoiceNumber}` : 'New Invoice'} description={mode === 'edit' ? 'Update the customer, items, pricing, dates, and invoice details.' : 'Create an invoice for a customer using solar system packages, components, and proposal items.'} actions={<Button type="button" variant="outline" onClick={() => askLeave(leaveDestination)}><ArrowLeft className="mr-2 size-4" /> {mode === 'edit' ? 'Cancel editing' : 'Back to invoices'}</Button>} />
     <div className="space-y-5">
       <Section title="Invoice Details">
         <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,1.5fr)]">
           <div className="lg:col-span-2"><FieldLabel required>Customer Name</FieldLabel><CustomerSelect value={customer} customers={customers} loading={customersLoading} onNew={() => setNewCustomerOpen(true)} onChange={(selected) => { setCustomer(selected); if (selected) setGstin(selected.gstin || ''); }} />{errors && !customer && <p className="mt-1 text-xs text-destructive">Please select a customer.</p>}</div>
-          <Field label="Invoice#" required={numberMode === 'manual'}><div className="flex gap-2"><Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder={numberMode === 'auto' ? 'Generated when saved' : 'Enter invoice number'} disabled={numberMode === 'auto'} /><Button type="button" variant="outline" size="icon" aria-label="Invoice number preferences" onClick={() => setPreferencesOpen(true)}><Settings2 className="size-4" /></Button></div></Field>
-          <Field label="Invoice Date" required><DateInput date={invoiceDate} onChange={(date) => { setInvoiceDate(date); if (term === 'Due on Receipt') setDueDate(date); }} /></Field>
+          <Field label="Invoice#" required={mode === 'edit' || numberMode === 'manual'}><div className="flex gap-2"><Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder={numberMode === 'auto' && mode === 'create' ? 'Generated when saved' : 'Enter invoice number'} disabled={mode === 'create' && numberMode === 'auto'} />{mode === 'create' && <Button type="button" variant="outline" size="icon" aria-label="Invoice number preferences" onClick={() => setPreferencesOpen(true)}><Settings2 className="size-4" /></Button>}</div></Field>
+          <Field label="Invoice Date" required><DateInput date={invoiceDate} onChange={(date) => { if (!date) return; setInvoiceDate(date); if (term === 'Due on Receipt') setDueDate(date); }} /></Field>
           <Field label="Terms"><select value={term} onChange={(e) => changeTerm(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{terms.map((entry) => <option key={entry}>{entry}</option>)}</select></Field>
-          <Field label="Due Date"><DateInput date={dueDate} onChange={setDueDate} /></Field>
+          <Field label="Due Date"><DateInput date={dueDate} onChange={setDueDate} clearable /></Field>
+          {mode === 'edit' && <Field label="Invoice Status"><div><Select value={invoiceStatus} onValueChange={(value) => setInvoiceStatus(value as InvoiceStatus)} disabled={invoiceHasPayments}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.values(InvoiceStatus).map((status) => <SelectItem key={status} value={status} disabled={['PAID', 'PARTIALLY_PAID'].includes(status)}>{status.replaceAll('_', ' ')}</SelectItem>)}</SelectContent></Select>{invoiceHasPayments && <p className="mt-1 text-xs text-muted-foreground">Payment status follows the recorded payments.</p>}</div></Field>}
           <Field label="Subject" className="lg:col-span-2"><Textarea value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Let your customer know what this Invoice is for" className="min-h-20 resize-y" /></Field>
         </div>
       </Section>
@@ -360,14 +441,14 @@ export function NewInvoiceForm() {
         {errors && !hasDescription && <p className="mt-2 text-xs text-destructive">Add an item description and quantity.</p>}
         <div className="mt-4"><Button type="button" variant="outline" size="sm" onClick={appendRow}><Plus className="size-4" /> Add Item</Button></div>
       </Section>
-      <div className="grid gap-5 xl:grid-cols-2"><Section title="Customer Notes"><Textarea value={customerNotes} onChange={(event) => setCustomerNotes(event.target.value)} className="min-h-24 resize-y" /><div className="mt-5"><label className="mb-2 block text-sm font-medium">Terms &amp; Conditions</label><Textarea value={invoiceTerms} onChange={(event) => setInvoiceTerms(event.target.value)} placeholder="Enter terms and conditions" className="min-h-24 resize-y" /></div></Section><Section title="Invoice Summary"><TotalsPanel subtotal={subtotal} taxPercent={taxPercent} setTaxPercent={setTaxPercent} taxAmount={taxAmount} discount={discount} setDiscount={setDiscount} discountMode={discountMode} setDiscountMode={setDiscountMode} shipping={shipping} setShipping={setShipping} adjustment={adjustment} setAdjustment={setAdjustment} total={payableTotal} amountReceived={receivedPayment ? Number(receivedAmount) || 0 : 0} balanceDue={Math.max(0, payableTotal - (receivedPayment ? Number(receivedAmount) || 0 : 0))} /></Section></div>
-      <Section title="Payment Received">
+      <div className="grid gap-5 xl:grid-cols-2"><Section title="Customer Notes"><Textarea value={customerNotes} onChange={(event) => setCustomerNotes(event.target.value)} className="min-h-24 resize-y" /><div className="mt-5"><label className="mb-2 block text-sm font-medium">Terms &amp; Conditions</label><Textarea value={invoiceTerms} onChange={(event) => setInvoiceTerms(event.target.value)} placeholder="Enter terms and conditions" className="min-h-24 resize-y" /></div></Section><Section title="Invoice Summary"><TotalsPanel subtotal={subtotal} taxPercent={taxPercent} setTaxPercent={setTaxPercent} taxAmount={taxAmount} discount={discount} setDiscount={setDiscount} discountMode={discountMode} setDiscountMode={setDiscountMode} shipping={shipping} setShipping={setShipping} adjustment={adjustment} setAdjustment={setAdjustment} withholdingAmount={withholdingAmount} setWithholdingAmount={setWithholdingAmount} withholdingType={withholdingType} setWithholdingType={setWithholdingType} total={payableTotal} amountReceived={mode === 'edit' ? Number(editingInvoice?.amountPaid) || 0 : receivedPayment ? Number(receivedAmount) || 0 : 0} balanceDue={Math.max(0, payableTotal - (mode === 'edit' ? Number(editingInvoice?.amountPaid) || 0 : receivedPayment ? Number(receivedAmount) || 0 : 0))} /></Section></div>
+      {mode === 'create' && <Section title="Payment Received">
         <label className="flex items-center gap-2 text-sm font-medium"><Checkbox checked={receivedPayment} onCheckedChange={(checked) => { setReceivedPayment(checked === true); if (checked === true) { setReceivedAmount(payableTotal.toFixed(2)); setReceivedAmountEdited(false); void getPaymentNumberPreview().then((preview) => { setReceivedPaymentNumber(preview.paymentNumber); setPaymentAutoGenerate(preview.settings.autoGenerate); }).catch((error) => toast.error(error instanceof Error ? error.message : 'Could not load payment number preferences.')); } }} />I have received the payment</label>
         {receivedPayment && <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><Field label="Amount Received" required><Input type="number" min="0.01" max={payableTotal} step="0.01" value={receivedAmount} onChange={(event) => { setReceivedAmount(event.target.value); setReceivedAmountEdited(true); }} /></Field><Field label="Balance Due"><Input readOnly value={currency(Math.max(0, payableTotal - (Number(receivedAmount) || 0)))} /></Field><Field label="Payment Mode" required><select value={receivedMode} onChange={(event) => setReceivedMode(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option>UPI</option><option>Bank Transfer</option><option>Cash</option><option>Cheque</option><option>Card</option><option>Other</option></select></Field><Field label="Deposit To"><Input value={receivedDepositTo} onChange={(event) => setReceivedDepositTo(event.target.value)} placeholder="Bank or cash account" /></Field><Field label="Payment Date" required><Input type="date" value={receivedDate} onChange={(event) => setReceivedDate(event.target.value)} /></Field><Field label="Reference #"><Input value={receivedReference} onChange={(event) => setReceivedReference(event.target.value)} /></Field>{!paymentAutoGenerate && <Field label="Payment #" required><div className="flex gap-2"><Input value={receivedPaymentNumber} onChange={(event) => setReceivedPaymentNumber(event.target.value)} /><Button type="button" variant="outline" size="icon" aria-label="Payment number settings" onClick={() => setPaymentSettingsOpen(true)}><Settings2 className="size-4" /></Button></div></Field>}</div>}
-      </Section>
-      <div className="flex justify-end"><Link href="/invoices" className="text-xs text-muted-foreground hover:text-foreground">Return to invoices</Link></div>
+      </Section>}
+      <div className="flex justify-end"><Link href={leaveDestination} className="text-xs text-muted-foreground hover:text-foreground">{mode === 'edit' ? 'Return to invoice' : 'Return to invoices'}</Link></div>
     </div>
-    <footer className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" onClick={() => void saveInvoice('DRAFT')} disabled={busy}>{busy ? 'Saving…' : 'Save as Draft'}</Button><Button type="button" onClick={() => void saveInvoice('SENT')} disabled={busy}>{busy ? 'Saving…' : 'Save and Send'}</Button><Button type="button" variant="ghost" onClick={() => askLeave('/invoices')}>Cancel</Button></div></footer>
+    <footer className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"><div className="flex flex-wrap items-center gap-2">{mode === 'edit' ? <Button type="button" onClick={() => void saveInvoice('DRAFT')} disabled={busy}>{busy ? 'Saving…' : 'Save Changes'}</Button> : <><Button type="button" variant="outline" onClick={() => void saveInvoice('DRAFT')} disabled={busy}>{busy ? 'Saving…' : 'Save as Draft'}</Button><Button type="button" onClick={() => void saveInvoice('SENT')} disabled={busy}>{busy ? 'Saving…' : 'Save and Send'}</Button></>}<Button type="button" variant="ghost" onClick={() => askLeave(leaveDestination)}>Cancel</Button></div></footer>
     <Dialog open={preferencesOpen} onOpenChange={setPreferencesOpen}><DialogContent><DialogHeader><DialogTitle>Invoice Number Preferences</DialogTitle><DialogDescription>Choose how invoice numbers are assigned.</DialogDescription></DialogHeader><div className="space-y-3 py-2"><label className="flex cursor-pointer items-start gap-3 rounded-md border p-3"><input type="radio" checked={numberMode === 'auto'} onChange={() => setNumberMode('auto')} /><span><span className="block text-sm font-medium">Auto-generate</span><span className="text-xs text-muted-foreground">Numbers are assigned automatically.</span></span></label><label className="flex cursor-pointer items-start gap-3 rounded-md border p-3"><input type="radio" checked={numberMode === 'manual'} onChange={() => setNumberMode('manual')} /><span><span className="block text-sm font-medium">Enter manually</span><span className="text-xs text-muted-foreground">Set the invoice number for this invoice.</span></span></label></div><DialogFooter><Button type="button" onClick={() => setPreferencesOpen(false)}>Done</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={sendOpen} onOpenChange={setSendOpen}><DialogContent><DialogHeader><DialogTitle>Send Invoice</DialogTitle><DialogDescription>Invoice {invoiceNumber} is saved as a draft. Send the PDF to the customer.</DialogDescription></DialogHeader><div className="space-y-3 py-2"><Field label="To"><Input type="email" value={sendEmail} onChange={(event) => setSendEmail(event.target.value)} placeholder="customer@example.com" /></Field><Field label="Subject"><Input value={`Invoice ${invoiceNumber}`} readOnly /></Field></div><DialogFooter><Button type="button" variant="outline" onClick={() => { setSendOpen(false); if (createdId) router.push(`/invoices/${createdId}`); }}>Send later</Button><Button type="button" disabled={busy || !sendEmail.trim()} onClick={async () => { if (!createdId) return; setBusy(true); try { await sendInvoiceEmail(createdId, sendEmail.trim()); toast.success('Invoice emailed with the PDF attached.'); setSendOpen(false); router.push(`/invoices/${createdId}`); } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not send invoice.'); } finally { setBusy(false); } }}>{busy ? 'Sending…' : 'Send with PDF'}</Button></DialogFooter></DialogContent></Dialog>
     <RequiredCapacitiesDialog open={capacitiesOpen} onOpenChange={setCapacitiesOpen} capacities={requiredCapacities} onSelectCapacity={handleSelectCapacity} />
@@ -539,7 +620,7 @@ function InvoiceItemScanner({ open, onOpenChange, onScan }: { open: boolean; onO
 
 function FieldLabel({ children, required = false }: { children: React.ReactNode; required?: boolean }) { return <div className="mb-2 text-sm font-medium">{children}{required && <span className="ml-1 text-destructive" title="Required">*</span>}</div>; }
 function Field({ label, children, required = false, className = '' }: { label: string; children: React.ReactNode; required?: boolean; className?: string }) { return <div className={`grid gap-2 sm:grid-cols-[minmax(110px,0.55fr)_minmax(0,1.45fr)] sm:items-start ${className}`}><div className="pt-2"><FieldLabel required={required}>{label}</FieldLabel></div><div>{children}</div></div>; }
-function DateInput({ date, onChange }: { date: Date; onChange: (date: Date) => void }) { return <Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-9 w-full justify-start font-normal"><CalendarDays className="mr-2 size-4 text-muted-foreground" />{format(date, 'dd MMM yyyy')}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={date} onSelect={(selected) => selected && onChange(selected)} /></PopoverContent></Popover>; }
+function DateInput({ date, onChange, clearable = false }: { date: Date | null; onChange: (date: Date | null) => void; clearable?: boolean }) { return <Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-9 w-full justify-start font-normal"><CalendarDays className="mr-2 size-4 text-muted-foreground" />{date ? format(date, 'dd MMM yyyy') : 'No due date'}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={date || undefined} onSelect={(selected) => onChange(selected || null)} />{clearable && date && <div className="border-t p-2"><Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => onChange(null)}>Clear due date</Button></div>}</PopoverContent></Popover>; }
 
 function NewCustomerDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (customer: Customer) => void }) {
   const [saving, setSaving] = useState(false);

@@ -19,7 +19,7 @@ export const invoiceItemInputSchema = z.object({
 export const createInvoiceSchema = z.object({
   invoiceNumber: z.string().trim().min(1).max(64).optional(),
   billedTo: z.string().min(1, 'Billed to information is required'),
-  customerId: z.string().optional(),
+  customerId: z.string().nullable().optional(),
   invoiceDate: z.string().or(z.date()).default(() => new Date()),
   dueDate: z.string().or(z.date()).optional().nullable(),
   taxRate: taxRateSchema.refine((value) => value.greaterThanOrEqualTo(0), "Amount is below the minimum").refine((value) => value.lessThanOrEqualTo(1), "Amount exceeds the maximum").default(0.18),

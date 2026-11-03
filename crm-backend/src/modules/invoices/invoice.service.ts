@@ -154,6 +154,13 @@ export class InvoiceService {
       if (input.initialPayment && existing.payments.length > 0) {
         throw new BadRequestError('An initial payment can only be added before any payments have been recorded');
       }
+      if (input.invoiceNumber && input.invoiceNumber !== existing.invoiceNumber) {
+        const duplicate = await tx.invoice.findUnique({ where: { invoiceNumber: input.invoiceNumber }, select: { id: true } });
+        if (duplicate) throw new BadRequestError('This invoice number is already in use');
+      }
+      if (decimal(existing.amountPaid).isZero() && input.status && ['PARTIALLY_PAID', 'PAID'].includes(input.status)) {
+        throw new BadRequestError('Record a payment before setting a payment status');
+      }
       let subtotal = decimal(existing.subtotal);
       let totalAmount = existing.totalAmount;
       const taxRate = input.taxRate !== undefined ? input.taxRate : existing.taxRate;
@@ -197,9 +204,11 @@ export class InvoiceService {
       await tx.invoice.update({
         where: { id },
         data: {
-          billedTo: input.billedTo,
+          invoiceNumber: input.invoiceNumber,
+          customerId: input.customerId === undefined ? undefined : input.customerId,
+          billedTo: input.billedTo ?? existing.billedTo,
           invoiceDate: input.invoiceDate ? new Date(input.invoiceDate) : undefined,
-          dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
+          dueDate: input.dueDate === undefined ? undefined : input.dueDate === null ? null : new Date(input.dueDate),
           taxRate,
           subtotal,
           taxAmount,
@@ -212,7 +221,7 @@ export class InvoiceService {
           balanceDue,
           status: decimal(existing.amountPaid).greaterThan(0)
             ? balanceDue.isZero() ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID
-            : input.status as InvoiceStatus | undefined,
+            : (input.status ?? existing.status) as InvoiceStatus,
           notes: input.notes,
         },
         include: {
