@@ -13,6 +13,11 @@ export interface ProposalItem {
     quantity: number;
     unitPrice: Prisma.Decimal.Value;
     total: Prisma.Decimal.Value;
+    panelBrand?: string | null;
+    systemPrice?: Prisma.Decimal.Value | null;
+    ksebFee?: Prisma.Decimal.Value | null;
+    afterSubsidy?: Prisma.Decimal.Value | null;
+    itemTaxRate?: Prisma.Decimal.Value;
     createdAt?: string;
     updatedAt?: string;
 }

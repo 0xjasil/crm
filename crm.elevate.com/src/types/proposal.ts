@@ -12,6 +12,11 @@ export interface ProposalItem {
     quantity: number;
     unitPrice: number;
     total: number;
+    panelBrand?: string | null;
+    systemPrice?: number | null;
+    ksebFee?: number | null;
+    afterSubsidy?: number | null;
+    itemTaxRate?: number;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -76,6 +81,11 @@ export interface CreateProposalInput {
         description: string;
         quantity: number;
         unitPrice: number;
+        panelBrand?: string | null;
+        systemPrice?: number;
+        ksebFee?: number;
+        afterSubsidy?: number | null;
+        itemTaxRate?: number;
     }[];
 }
 
@@ -101,5 +111,10 @@ export interface UpdateProposalInput {
         description: string;
         quantity: number;
         unitPrice: number;
+        panelBrand?: string | null;
+        systemPrice?: number;
+        ksebFee?: number;
+        afterSubsidy?: number | null;
+        itemTaxRate?: number;
     }[];
 }

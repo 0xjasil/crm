@@ -160,13 +160,13 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <div>
             <CardTitle>Invoice Items</CardTitle>
             <CardDescription>Add and manage line items for this invoice</CardDescription>
           </div>
-          <Button onClick={() => setShowAddForm(!showAddForm)} disabled={isSubmitting}>
+          <Button onClick={() => setShowAddForm(!showAddForm)} disabled={isSubmitting} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Add Item
           </Button>
@@ -341,6 +341,8 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
             </div>
           </div>
         ) : (
+          <>
+          <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -413,6 +415,7 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
                           <Button
                             size="sm"
                             variant="outline"
+                            aria-label="Save item"
                             onClick={() => handleSaveEdit(item.id)}
                             disabled={isSubmitting}
                           >
@@ -421,6 +424,7 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
                           <Button
                             size="sm"
                             variant="outline"
+                            aria-label="Cancel editing item"
                             onClick={() => handleCancelEdit(item.id)}
                             disabled={isSubmitting}
                           >
@@ -432,6 +436,7 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
                           <Button
                             size="sm"
                             variant="outline"
+                            aria-label="Edit item"
                             onClick={() => handleEditItem(item)}
                             disabled={isSubmitting}
                           >
@@ -440,6 +445,7 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
                           <Button
                             size="sm"
                             variant="outline"
+                            aria-label="Delete item"
                             onClick={() => handleDeleteItem(item.id)}
                             disabled={isSubmitting}
                             className="text-red-600 hover:text-red-700"
@@ -454,6 +460,36 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
               })}
             </TableBody>
           </Table>
+          </div>
+          <div className="space-y-3 md:hidden">
+            {items.map((item) => {
+              const isEditing = editingItems[item.id]?.isEditing;
+              const editingItem = editingItems[item.id];
+              return <article key={item.id} className="space-y-3 rounded-lg border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Item</div>
+                    {isEditing ? <Textarea value={editingItem.itemDescription} onChange={(e) => updateEditingItem(item.id, 'itemDescription', e.target.value)} className="min-h-20" /> : <p className="whitespace-pre-wrap break-words text-sm font-medium">{item.itemDescription}</p>}
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {isEditing ? <>
+                      <Button size="icon" variant="outline" aria-label="Save item" onClick={() => handleSaveEdit(item.id)} disabled={isSubmitting}><Save className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="outline" aria-label="Cancel editing item" onClick={() => handleCancelEdit(item.id)} disabled={isSubmitting}><X className="h-4 w-4" /></Button>
+                    </> : <>
+                      <Button size="sm" variant="outline" onClick={() => handleEditItem(item)} disabled={isSubmitting}>Edit</Button>
+                      <Button size="icon" variant="outline" aria-label="Delete item" onClick={() => handleDeleteItem(item.id)} disabled={isSubmitting} className="text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /></Button>
+                    </>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/30 p-3 text-sm">
+                  <label className="grid gap-1 text-xs text-muted-foreground">Quantity{isEditing ? <Input type="number" min="1" value={editingItem.quantity} onChange={(e) => updateEditingItem(item.id, 'quantity', parseInt(e.target.value) || 1)} className="h-9 text-sm text-foreground" /> : <span className="text-sm font-medium text-foreground">{item.quantity}</span>}</label>
+                  <label className="grid gap-1 text-xs text-muted-foreground">Unit price{isEditing ? <Input type="number" min="0" step="0.01" value={editingItem.unitPrice} onChange={(e) => updateEditingItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} className="h-9 text-sm text-foreground" /> : <span className="text-sm font-medium text-foreground">{formatCurrency(item.unitPrice)}</span>}</label>
+                  <div className="col-span-2 flex items-center justify-between border-t pt-2"><span className="font-medium text-foreground">Line total</span><span className="font-semibold tabular-nums">{formatCurrency(isEditing ? editingItem.quantity * editingItem.unitPrice : item.lineTotal)}</span></div>
+                </div>
+              </article>;
+            })}
+          </div>
+          </>
         )}
       </CardContent>
     </Card>

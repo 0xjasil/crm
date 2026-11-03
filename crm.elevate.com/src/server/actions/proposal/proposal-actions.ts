@@ -13,6 +13,11 @@ const proposalItemSchema = z.object({
   description: z.string().min(1, 'Item description is required'),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   unitPrice: z.number().min(0, 'Unit price cannot be negative'),
+  panelBrand: z.string().nullable().optional(),
+  systemPrice: z.number().min(0).optional(),
+  ksebFee: z.number().min(0).optional(),
+  afterSubsidy: z.number().min(0).nullable().optional(),
+  itemTaxRate: z.number().min(0).max(100).default(0),
 });
 
 const createProposalSchema = z.object({

@@ -255,6 +255,7 @@ export default function ProposalDetailPage() {
                       <th className="py-3 px-4">Description</th>
                       <th className="py-3 px-4 text-center">Qty</th>
                       <th className="py-3 px-4 text-right">Unit Price</th>
+                      <th className="py-3 px-4 text-right">Item Tax</th>
                       <th className="py-3 px-4 text-right">Total</th>
                     </tr>
                   </thead>
@@ -263,11 +264,20 @@ export default function ProposalDetailPage() {
                       proposal.items.map((item, idx) => (
                         <tr key={item.id || idx} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3.5 px-4 text-muted-foreground text-xs">{idx + 1}</td>
-                          <td className="py-3.5 px-4 font-medium">{item.description}</td>
+                          <td className="py-3.5 px-4 font-medium">{item.description}
+                            {(item.panelBrand || item.systemPrice != null || item.ksebFee != null || item.afterSubsidy != null) && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-normal text-muted-foreground">
+                              {item.panelBrand && <span>Panel: {item.panelBrand}</span>}
+                              {item.systemPrice != null && <span>Price: {formatCurrency(Number(item.systemPrice))}</span>}
+                              {item.ksebFee != null && <span>KSEB bill: {formatCurrency(Number(item.ksebFee))}</span>}
+                              {item.afterSubsidy != null && <span>After subsidy: {formatCurrency(Number(item.afterSubsidy))}</span>}
+                              <span>Grand total: {formatCurrency(Number(item.unitPrice))}</span>
+                            </div>}
+                          </td>
                           <td className="py-3.5 px-4 text-center font-mono">{item.quantity}</td>
                           <td className="py-3.5 px-4 text-right font-mono text-muted-foreground">
                             {formatCurrency(item.unitPrice)}
                           </td>
+                          <td className="py-3.5 px-4 text-right font-mono text-muted-foreground">{Number(item.itemTaxRate) > 0 ? <>{Number(item.itemTaxRate)}%<span className="block text-xs">{formatCurrency(Number(item.unitPrice) * Number(item.quantity) * Number(item.itemTaxRate) / 100)}</span></> : '—'}</td>
                           <td className="py-3.5 px-4 text-right font-semibold font-mono">
                             {formatCurrency(item.total || item.quantity * item.unitPrice)}
                           </td>
@@ -275,7 +285,7 @@ export default function ProposalDetailPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="py-6 text-center text-muted-foreground">
+                        <td colSpan={6} className="py-6 text-center text-muted-foreground">
                           No items in this proposal
                         </td>
                       </tr>

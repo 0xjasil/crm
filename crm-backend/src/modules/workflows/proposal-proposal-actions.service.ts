@@ -13,6 +13,11 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
         description: z.string().min(1, 'Item description is required'),
         quantity: z.number().min(1, 'Quantity must be at least 1'),
         unitPrice: moneySchema.refine((value) => value.greaterThanOrEqualTo(0), 'Unit price cannot be negative'),
+        panelBrand: z.string().optional().nullable(),
+        systemPrice: moneySchema.optional(),
+        ksebFee: moneySchema.optional(),
+        afterSubsidy: moneySchema.optional().nullable(),
+        itemTaxRate: taxRateSchema.default(0),
     });
     const createProposalSchema = z.object({
         title: z.string().optional(),
@@ -173,11 +178,19 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
             const processedItems = parsedInput.items.map((item) => {
                 const qty = Number(item.quantity) || 1;
                 const price = decimal(item.unitPrice);
+                const itemTaxRate = decimal(item.itemTaxRate || 0);
+                const baseTotal = decimal(qty).times(price);
+                const itemTaxAmount = baseTotal.times(itemTaxRate).div(100);
                 return {
                     description: item.description.trim(),
                     quantity: qty,
                     unitPrice: price,
-                    total: decimal(qty).times(price),
+                    panelBrand: item.panelBrand || null,
+                    systemPrice: item.systemPrice ?? null,
+                    ksebFee: item.ksebFee ?? null,
+                    afterSubsidy: item.afterSubsidy ?? null,
+                    itemTaxRate,
+                    total: baseTotal.plus(itemTaxAmount),
                 };
             });
             const subtotal = processedItems.reduce((acc, curr) => decimal(acc).plus(curr.total), decimal(0));
@@ -223,6 +236,11 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
                                 quantity: item.quantity,
                                 unitPrice: item.unitPrice,
                                 total: item.total,
+                                panelBrand: item.panelBrand,
+                                systemPrice: item.systemPrice,
+                                ksebFee: item.ksebFee,
+                                afterSubsidy: item.afterSubsidy,
+                                itemTaxRate: item.itemTaxRate,
                             })),
                         },
                     },
@@ -294,12 +312,19 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
                 processedItems = items.map((item) => {
                     const qty = Number(item.quantity) || 1;
                     const price = decimal(item.unitPrice);
+                    const itemTaxRate = decimal(item.itemTaxRate || 0);
+                    const baseTotal = decimal(qty).times(price);
                     return {
                         id: item.id || `pitem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
                         description: item.description.trim(),
                         quantity: qty,
                         unitPrice: price,
-                        total: decimal(qty).times(price),
+                        panelBrand: item.panelBrand || null,
+                        systemPrice: item.systemPrice ?? null,
+                        ksebFee: item.ksebFee ?? null,
+                        afterSubsidy: item.afterSubsidy ?? null,
+                        itemTaxRate,
+                        total: baseTotal.plus(baseTotal.times(itemTaxRate).div(100)),
                     };
                 });
                 subtotal = processedItems.reduce((acc, curr) => decimal(acc).plus(curr.total), decimal(0));
@@ -321,6 +346,11 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
                                 quantity: item.quantity,
                                 unitPrice: item.unitPrice,
                                 total: item.total,
+                                panelBrand: item.panelBrand,
+                                systemPrice: item.systemPrice,
+                                ksebFee: item.ksebFee,
+                                afterSubsidy: item.afterSubsidy,
+                                itemTaxRate: item.itemTaxRate,
                             })),
                         });
                     }
@@ -328,7 +358,11 @@ export function createProposalProposalActionsService(prisma: PrismaClient, curre
                         where: { id },
                         data: {
                             ...updateFields,
-                            ...(processedItems ? { subtotal, totalAmount } : {}),
+                            ...(processedItems ? {
+                                subtotal,
+                                taxAmount: decimal(subtotal).times(taxRate).div(100),
+                                totalAmount,
+                            } : {}),
                             updatedAt: new Date(),
                         },
                     });

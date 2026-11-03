@@ -59,11 +59,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ProposalStatus } from '@/types/proposal';
+import { ProposalCustomerPicker } from '@/components/proposals/proposal-customer-picker';
+import { getInvoiceProductCatalog, InvoiceProductItem, RequiredCapacity } from '@/server/actions/invoice-catalog-actions';
+import { InvoiceCustomer } from '@/lib/api/invoice-api';
 
 const proposalItemSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   unitPrice: z.number().min(0, 'Unit price must be positive'),
+  panelBrand: z.string().nullable().optional(),
+  systemPrice: z.number().min(0).default(0),
+  ksebFee: z.number().min(0).default(0),
+  afterSubsidy: z.number().min(0).nullable().optional(),
+  itemTaxRate: z.number().min(0).max(100).default(0),
 });
 
 const createProposalSchema = z.object({
@@ -98,6 +106,8 @@ export default function CreateProposalPage() {
   const [branches, setBranches] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedEnquiry, setSelectedEnquiry] = useState<any | null>(null);
+  const [catalog, setCatalog] = useState<InvoiceProductItem[]>([]);
+  const [capacities, setCapacities] = useState<RequiredCapacity[]>([]);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(createProposalSchema) as any,
@@ -117,7 +127,7 @@ export default function CreateProposalPage() {
       notes: 'Thank you for your interest in our solar energy solutions. Contact us for any technical adjustments.',
       terms:
         '1. Validity: This proposal and pricing is valid for 15 days from issue date.\n2. Payment terms: 50% advance booking, 40% on material delivery, 10% after grid synchronization.\n3. Feasibility and Net-Metering approvals are subject to KSEB regulations.',
-      items: [{ description: '', quantity: 1, unitPrice: 0 }],
+      items: [{ description: '', quantity: 1, unitPrice: 0, systemPrice: 0, ksebFee: 0, itemTaxRate: 0 }],
     },
   });
 
@@ -170,6 +180,32 @@ export default function CreateProposalPage() {
     fetchEnquiries();
   }, []);
 
+  useEffect(() => {
+    getInvoiceProductCatalog().then((result) => {
+      setCatalog(result.catalog || []);
+      setCapacities(result.requiredCapacities || []);
+    }).catch((error) => toast.error(error instanceof Error ? error.message : 'Could not load invoice products.'));
+  }, []);
+
+  const applyInvoiceCustomer = (customer: InvoiceCustomer) => {
+    form.setValue('clientName', customer.name);
+    form.setValue('clientEmail', customer.email || '');
+    form.setValue('clientPhone', customer.phone || '');
+    form.setValue('clientAddress', customer.address || '');
+    if (customer.sourceType === 'enquiry') form.setValue('enquiryId', customer.id.replace(/^enquiry:/, ''));
+  };
+
+  const addCapacity = (capacity: RequiredCapacity) => {
+    const grandTotal = capacity.grandTotal || capacity.courseFee + capacity.admissionFee;
+    append({ description: capacity.description || `${capacity.name} Solar System${capacity.brand ? ` with ${capacity.brand} Panels` : ''}`, quantity: 1, unitPrice: grandTotal, panelBrand: capacity.brand || null, systemPrice: capacity.courseFee, ksebFee: capacity.admissionFee, afterSubsidy: capacity.afterSubsidy ?? null, itemTaxRate: 0 });
+  };
+
+  const addCatalogItem = (product: InvoiceProductItem) => {
+    const capacity = capacities.find((entry) => entry.id === product.capacityId || entry.id === product.id);
+    if (capacity) { addCapacity(capacity); return; }
+    append({ description: product.description || product.name, quantity: product.quantity || 1, unitPrice: product.price, systemPrice: product.price, ksebFee: 0, itemTaxRate: 0 });
+  };
+
   // Handle URL param ?enquiryId=...
   useEffect(() => {
     if (enquiryIdParam) {
@@ -220,6 +256,11 @@ export default function CreateProposalPage() {
             description: `${pref.name} Solar Power System (Complete On-Grid Package with Tier-1 Panels & Inverter)`,
             quantity: 1,
             unitPrice: grandTotal > 0 ? grandTotal : price,
+            panelBrand: pref.duration || null,
+            systemPrice: price,
+            ksebFee: kseb,
+            afterSubsidy: pref.semesterFee ?? null,
+            itemTaxRate: 0,
           },
         ]);
       }
@@ -231,8 +272,9 @@ export default function CreateProposalPage() {
   const taxRate = Number(form.watch('taxRate') || 0);
   const discountAmount = Number(form.watch('discountAmount') || 0);
 
+  const itemTaxTotal = watchedItems.reduce((sum, item) => sum + (Number(item?.quantity) || 0) * (Number(item?.unitPrice) || 0) * (Number(item?.itemTaxRate) || 0) / 100, 0);
   const subtotal = watchedItems.reduce(
-    (sum, item) => sum + (Number(item?.quantity) || 0) * (Number(item?.unitPrice) || 0),
+    (sum, item) => sum + (Number(item?.quantity) || 0) * (Number(item?.unitPrice) || 0) * (1 + (Number(item?.itemTaxRate) || 0) / 100),
     0
   );
   const taxAmount = (subtotal * taxRate) / 100;
@@ -249,6 +291,11 @@ export default function CreateProposalPage() {
       description: `${course.name} Solar System${brand} - Complete Turnkey Installation & KSEB Feasibility`,
       quantity: 1,
       unitPrice: total > 0 ? total : price,
+      panelBrand: course.duration || null,
+      systemPrice: price,
+      ksebFee: kseb,
+      afterSubsidy: course.semesterFee ?? null,
+      itemTaxRate: 0,
     });
     toast.info(`Added ${course.name} to proposal items`);
   };
@@ -404,6 +451,7 @@ export default function CreateProposalPage() {
           </CardHeader>
 
           <CardContent className="grid gap-4 pt-6">
+            <div className="grid gap-2"><Label>Invoice Customer</Label><ProposalCustomerPicker onSelect={applyInvoiceCustomer} /></div>
             {selectedEnquiry && selectedEnquiry.preferredCourse && (
               <div className="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs">
                 <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
@@ -552,8 +600,12 @@ export default function CreateProposalPage() {
                 </CardDescription>
               </div>
 
-              {/* Quick Add from Solar Capacities / Courses */}
+              {/* Quick Add from the invoice product catalog */}
               <div className="flex items-center gap-2">
+                <Select onValueChange={(productId) => { const capacity = capacities.find((item) => item.id === productId); if (capacity) { addCapacity(capacity); return; } const product = catalog.find((item) => item.id === productId); if (product) addCatalogItem(product); }}>
+                  <SelectTrigger className="h-9 text-xs w-[240px] bg-white dark:bg-zinc-950"><SelectValue placeholder="Choose invoice product…" /></SelectTrigger>
+                  <SelectContent>{capacities.map((item) => <SelectItem key={`capacity-${item.id}`} value={item.id}>{item.name}{item.brand ? ` · ${item.brand} Panels` : ''} · ₹{(item.grandTotal || item.courseFee + item.admissionFee).toLocaleString('en-IN')}</SelectItem>)}{catalog.filter((item) => item.category !== 'capacity').map((item) => <SelectItem key={`product-${item.id}`} value={item.id}>{item.name} · ₹{item.price.toLocaleString('en-IN')}</SelectItem>)}</SelectContent>
+                </Select>
                 {courses.length > 0 && (
                   <Select
                     onValueChange={(courseId) => {
@@ -580,7 +632,7 @@ export default function CreateProposalPage() {
                   variant="outline"
                   size="sm"
                   className="h-9 shadow-xs"
-                  onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}
+                  onClick={() => append({ description: '', quantity: 1, unitPrice: 0, systemPrice: 0, ksebFee: 0, itemTaxRate: 0 })}
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" />
                   Add Custom Item
@@ -613,6 +665,13 @@ export default function CreateProposalPage() {
                   )}
                 </div>
 
+                <div className="w-full grid grid-cols-2 md:w-[420px] gap-2">
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">Panel</Label><Input value={watchedItems[index]?.panelBrand || ''} placeholder="Panel brand" onChange={(e) => form.setValue(`items.${index}.panelBrand`, e.target.value || null)} /></div>
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">System Price (₹)</Label><Input type="number" min="0" value={watchedItems[index]?.systemPrice ?? 0} onChange={(e) => { const systemPrice = Number(e.target.value); form.setValue(`items.${index}.systemPrice`, systemPrice); form.setValue(`items.${index}.unitPrice`, systemPrice + (Number(watchedItems[index]?.ksebFee) || 0)); }} /></div>
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">KSEB Bill (₹)</Label><Input type="number" min="0" value={watchedItems[index]?.ksebFee ?? 0} onChange={(e) => { const ksebFee = Number(e.target.value); form.setValue(`items.${index}.ksebFee`, ksebFee); form.setValue(`items.${index}.unitPrice`, (Number(watchedItems[index]?.systemPrice) || 0) + ksebFee); }} /></div>
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">After Subsidy (₹)</Label><Input type="number" min="0" value={watchedItems[index]?.afterSubsidy ?? ''} onChange={(e) => form.setValue(`items.${index}.afterSubsidy`, e.target.value === '' ? null : Number(e.target.value))} /></div>
+                </div>
+
                 <div className="flex items-center gap-3 w-full md:w-auto">
                   <div className="w-24 grid gap-1.5">
                     <Label className="text-xs text-muted-foreground font-medium">Quantity</Label>
@@ -624,13 +683,20 @@ export default function CreateProposalPage() {
                   </div>
 
                   <div className="w-36 grid gap-1.5">
-                    <Label className="text-xs text-muted-foreground font-medium">Unit Price (₹)</Label>
+                    <Label className="text-xs text-muted-foreground font-medium">Grand Total (₹)</Label>
                     <Input
                       type="number"
                       min="0"
                       step="any"
-                      {...form.register(`items.${index}.unitPrice`, { valueAsNumber: true })}
+                      value={watchedItems[index]?.unitPrice ?? 0}
+                      readOnly
+                      aria-label="Grand total from system price and KSEB bill"
                     />
+                  </div>
+
+                  <div className="w-28 grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground font-medium">Item Tax (%)</Label>
+                    <Input type="number" min="0" max="100" step="0.01" {...form.register(`items.${index}.itemTaxRate`, { valueAsNumber: true })} />
                   </div>
 
                   <div className="w-36 grid gap-1.5 text-right">
@@ -638,7 +704,7 @@ export default function CreateProposalPage() {
                     <div className="h-9 px-3 flex items-center justify-end font-semibold text-sm bg-white dark:bg-zinc-950 border rounded-md">
                       ₹
                       {(
-                        (watchedItems[index]?.quantity || 0) * (watchedItems[index]?.unitPrice || 0)
+                        (watchedItems[index]?.quantity || 0) * (watchedItems[index]?.unitPrice || 0) * (1 + (watchedItems[index]?.itemTaxRate || 0) / 100)
                       ).toLocaleString('en-IN')}
                     </div>
                   </div>
@@ -744,11 +810,13 @@ export default function CreateProposalPage() {
               {/* Calculations Box */}
               <div className="bg-muted/30 border rounded-xl p-5 space-y-3">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Subtotal ({watchedItems.length} items):</span>
+                  <span>Subtotal (includes item tax):</span>
                   <span className="font-medium text-foreground">
                     ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
+
+                {itemTaxTotal > 0 && <div className="flex justify-between text-sm text-muted-foreground"><span>Item taxes included:</span><span>+₹{itemTaxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>}
 
                 {taxRate > 0 && (
                   <div className="flex justify-between text-sm text-muted-foreground">

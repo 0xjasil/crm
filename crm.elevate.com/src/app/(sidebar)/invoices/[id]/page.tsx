@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowLeft,
@@ -199,7 +198,7 @@ export default function InvoiceDetailPage() {
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="max-width-1150 @container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
         {/* Header Skeleton */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -254,7 +253,7 @@ export default function InvoiceDetailPage() {
 
   if (!invoice) {
     return (
-      <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="max-width-1150 @container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div className="flex items-center justify-center py-24">
           <div className="text-center space-y-3">
             <Receipt className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -276,10 +275,9 @@ export default function InvoiceDetailPage() {
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="relative @container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
-      {/* Enhanced Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <div className="max-width-1150 relative @container/main flex flex-1 flex-col gap-5 p-3 sm:p-5 lg:p-6">
+      <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -289,8 +287,8 @@ export default function InvoiceDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="space-y-1">
-            <div className="flex items-center flex-wrap gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">Invoice {invoice.invoiceNumber}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="break-all text-xl font-bold tracking-tight sm:text-2xl">Invoice {invoice.invoiceNumber}</h1>
               <Badge variant="outline" className={`${statusConfig.color} border px-2.5 py-1`}>
                 <StatusIcon className="mr-1.5 h-3 w-3" />
                 {statusConfig.label}
@@ -303,128 +301,60 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button>
-          <Button variant="outline" onClick={() => { setSendEmail(invoice.customer?.email || ''); setSendOpen(true); }}><Send className="mr-2 h-4 w-4" />Send</Button>
-          <Button variant="outline" onClick={() => void handleShare()}><Share2 className="mr-2 h-4 w-4" />{invoice.shareToken ? 'Copy Share Link' : 'Share'}</Button>
-          {invoice.shareToken && <Button variant="ghost" onClick={() => void handleRevokeShare()}>Revoke</Button>}
-          <Button variant="outline" onClick={() => setRemindersOpen(true)}><Bell className="mr-2 h-4 w-4" />Reminders</Button>
-          {Number(invoice.balanceDue ?? invoice.totalAmount - (invoice.amountPaid ?? 0)) > 0 && ![InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED].includes(invoice.status) && <Button onClick={() => setPaymentOpen(true)}> <IndianRupee className="mr-2 h-4 w-4" />Record Payment</Button>}
-          <Button
-            variant="outline"
-            onClick={() => setZohoPreviewOpen(true)}
-            className="gap-2"
-          >
-            <Eye className="h-4 w-4" />
-            Preview PDF
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleGeneratePDF(true)}
-            disabled={isGeneratingPDF}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download PDF
-          </Button>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:max-w-[680px] sm:flex-wrap sm:justify-end">
+          <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}><Pencil className="mr-1.5 size-4" />Edit</Button>
+          <Button size="sm" variant="outline" onClick={() => { setSendEmail(invoice.customer?.email || ''); setSendOpen(true); }}><Send className="mr-1.5 size-4" />Send</Button>
+          <Button size="sm" variant="outline" onClick={() => void handleShare()}><Share2 className="mr-1.5 size-4" />Share</Button>
+          <Button size="sm" variant="outline" onClick={() => setRemindersOpen(true)}><Bell className="mr-1.5 size-4" />Reminders</Button>
+          {Number(invoice.balanceDue ?? invoice.totalAmount - (invoice.amountPaid ?? 0)) > 0 && ![InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED].includes(invoice.status) && <Button size="sm" onClick={() => setPaymentOpen(true)}><IndianRupee className="mr-1 size-4" />Record Payment</Button>}
+          <Button size="sm" variant="outline" onClick={() => setZohoPreviewOpen(true)}><Eye className="mr-1.5 size-4" />Preview PDF</Button>
+          <Button size="sm" variant="outline" onClick={() => handleGeneratePDF(true)} disabled={isGeneratingPDF}><Download className="mr-1.5 size-4" />Download PDF</Button>
+          {invoice.shareToken && <Button size="sm" variant="ghost" onClick={() => void handleRevokeShare()}>Revoke link</Button>}
         </div>
       </div>
 
       {Number(invoice.amountPaid ?? 0) > 0 && Number(invoice.balanceDue ?? 0) > 0 && (
-        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100">
+        <div role="status" className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100">
           <span>Invoice has been partially paid. Balance due: {formatCurrency(Number(invoice.balanceDue))}.</span>
           <Button size="sm" variant="outline" onClick={() => setPaymentOpen(true)}>Record payment</Button>
         </div>
       )}
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         {/* Left Column - Invoice Details and Items */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 space-y-5">
           {/* Invoice Information Card */}
           <Card className="overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                Invoice Details
-              </CardTitle>
-              <CardDescription>Basic information and billing details</CardDescription>
+            <CardHeader className="border-b bg-muted/20 px-4 py-4 sm:px-5">
+              <CardTitle className="flex items-center gap-2 text-base"><Receipt className="size-4" />Invoice information</CardTitle>
+              <CardDescription>Customer billing details and invoice dates</CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Billing Information */}
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="font-semibold text-sm">Billed To</h4>
-                    </div>
-                    <div className="bg-muted/50 rounded-lg p-4">
-                      <pre className="text-sm font-medium whitespace-pre-wrap text-foreground leading-relaxed">
-                        {invoice.billedTo}
-                      </pre>
-                    </div>
-                  </div>
-
-                  {invoice.notes && (
-                    <div>
-                      <h4 className="font-semibold text-sm text-muted-foreground mb-2">
-                        Additional Notes
-                      </h4>
-                      <div className="text-sm bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        {invoice.notes}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Invoice Metadata */}
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-900">Invoice Date</span>
-                      </div>
-                      <span className="text-sm font-semibold text-blue-900">
-                        {formatDate(invoice.invoiceDate)}
-                      </span>
-                    </div>
-
-                    {invoice.dueDate && (
-                      <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-orange-600" />
-                          <span className="text-sm font-medium text-orange-900">Due Date</span>
-                        </div>
-                        <span className="text-sm font-semibold text-orange-900">
-                          {formatDate(invoice.dueDate)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <IndianRupee className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-900">Tax Rate</span>
-                      </div>
-                      <span className="text-sm font-semibold text-green-900">
-                        {(invoice.taxRate * 100).toFixed(1)}%
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-purple-900">Created By</span>
-                      </div>
-                      <span className="text-sm font-semibold text-purple-900">
-                        {invoice.createdBy.name}
-                      </span>
-                    </div>
+            <CardContent className="grid gap-6 p-4 md:grid-cols-[minmax(0,1.1fr)_minmax(250px,.9fr)] sm:p-5">
+              <section className="min-w-0 space-y-4">
+                <div className="flex items-center gap-2 text-sm font-semibold"><User className="size-4 text-muted-foreground" />Billed to</div>
+                <div className="rounded-lg border bg-muted/10 p-4">
+                  <h3 className="break-words text-base font-semibold">{invoice.customer?.name || invoice.billedTo.split('\n')[0]}</h3>
+                  <div className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                    {invoice.customer?.phone && <div className="min-w-0"><span className="block text-xs text-muted-foreground">Phone</span><span className="break-all">{invoice.customer.phone}</span></div>}
+                    {invoice.customer?.email && <div className="min-w-0"><span className="block text-xs text-muted-foreground">Email</span><span className="break-all">{invoice.customer.email}</span></div>}
+                    {invoice.customer?.address && <div className="min-w-0 sm:col-span-2"><span className="block text-xs text-muted-foreground">Billing address</span><span className="whitespace-pre-wrap">{invoice.customer.address}</span></div>}
+                    {invoice.customer?.state && <div><span className="block text-xs text-muted-foreground">State</span>{invoice.customer.state}</div>}
+                    {invoice.customer?.gstin && <div><span className="block text-xs text-muted-foreground">GSTIN</span>{invoice.customer.gstin}</div>}
+                    {!invoice.customer && <p className="whitespace-pre-wrap text-muted-foreground sm:col-span-2">{invoice.billedTo}</p>}
                   </div>
                 </div>
-              </div>
+                {invoice.notes && <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/20"><h4 className="mb-1 font-semibold">Notes</h4><p className="whitespace-pre-wrap break-words text-muted-foreground">{invoice.notes}</p></div>}
+              </section>
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold">Invoice details</h3>
+                <dl className="grid gap-3 sm:grid-cols-2 md:grid-cols-1 2xl:grid-cols-2">
+                  <div className="rounded-lg border p-3"><dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><Calendar className="size-3.5" />Invoice date</dt><dd className="mt-1 text-sm font-semibold">{formatDate(invoice.invoiceDate)}</dd></div>
+                  <div className="rounded-lg border p-3"><dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><Clock className="size-3.5" />Due date</dt><dd className="mt-1 text-sm font-semibold">{invoice.dueDate ? formatDate(invoice.dueDate) : 'No due date'}</dd></div>
+                  <div className="rounded-lg border p-3"><dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><IndianRupee className="size-3.5" />Tax rate</dt><dd className="mt-1 text-sm font-semibold">{(invoice.taxRate * 100).toFixed(1)}%</dd></div>
+                  <div className="rounded-lg border p-3"><dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><User className="size-3.5" />Created by</dt><dd className="mt-1 break-words text-sm font-semibold">{invoice.createdBy?.name || '—'}</dd></div>
+                </dl>
+              </section>
             </CardContent>
           </Card>
 
@@ -438,50 +368,12 @@ export default function InvoiceDetailPage() {
         </div>
 
         {/* Right Column - Summary and Actions */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-              <CardDescription>Manage this invoice</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Invoice Status Update */}
-              <InvoiceStatusUpdate
-                invoiceId={invoice.id}
-                currentStatus={invoice.status}
-                onStatusUpdate={fetchInvoice}
-              />
-
-              <Separator />
-
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-muted-foreground">Actions</h4>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                  onClick={() => handleGeneratePDF()}
-                  disabled={isGeneratingPDF}
-                >
-                  <Eye className="h-4 w-4" />
-                  {isGeneratingPDF ? 'Opening PDF...' : 'Preview PDF'}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                  onClick={() => handleGeneratePDF(true)}
-                  disabled={isGeneratingPDF}
-                >
-                  <Download className="h-4 w-4" />
-                  {isGeneratingPDF ? 'Opening PDF...' : 'Download PDF'}
-                </Button>
-              </div>
-            </CardContent>
+        <div className="min-w-0 space-y-5">
+          <Card className="shadow-sm">
+            <CardHeader className="border-b bg-muted/20 px-4 py-4 sm:px-5"><CardTitle className="text-base">Invoice status</CardTitle><CardDescription>Update the current payment state</CardDescription></CardHeader>
+            <CardContent className="p-4 sm:p-5"><InvoiceStatusUpdate invoiceId={invoice.id} currentStatus={invoice.status} onStatusUpdate={fetchInvoice} /></CardContent>
           </Card>
-
-          {/* Invoice Summary - Sticky */}
-          <div className="lg:sticky lg:top-6 lg:self-start">
+          <div className="xl:sticky xl:top-5 xl:self-start">
             <InvoiceTotals
               subtotal={invoice.subtotal}
               taxRate={invoice.taxRate}

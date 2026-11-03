@@ -654,6 +654,11 @@ model ProposalItem {
   quantity    Int      @default(1)
   unitPrice   Decimal    @default(0) @db.Decimal(19, 4)
   total       Decimal    @default(0) @db.Decimal(19, 4)
+  panelBrand  String?
+  systemPrice Decimal? @db.Decimal(19, 4)
+  ksebFee     Decimal? @db.Decimal(19, 4)
+  afterSubsidy Decimal? @db.Decimal(19, 4)
+  itemTaxRate Decimal  @default(0) @db.Decimal(9, 6)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)

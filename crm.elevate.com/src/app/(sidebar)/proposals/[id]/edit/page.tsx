@@ -21,6 +21,9 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Save, ArrowLeft, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProposalStatus } from '@/types/proposal';
+import { ProposalCustomerPicker } from '@/components/proposals/proposal-customer-picker';
+import { getInvoiceProductCatalog, InvoiceProductItem, RequiredCapacity } from '@/server/actions/invoice-catalog-actions';
+import { InvoiceCustomer } from '@/lib/api/invoice-api';
 import {
   getProposalById,
   updateProposal,
@@ -39,6 +42,11 @@ const proposalItemSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   unitPrice: z.number().min(0, 'Unit price must be positive'),
+  panelBrand: z.string().nullable().optional(),
+  systemPrice: z.number().min(0).default(0),
+  ksebFee: z.number().min(0).default(0),
+  afterSubsidy: z.number().min(0).nullable().optional(),
+  itemTaxRate: z.number().min(0).max(100).default(0),
 });
 
 const updateProposalSchema = z.object({
@@ -66,6 +74,8 @@ export default function EditProposalPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [branches, setBranches] = useState<any[]>([]);
+  const [catalog, setCatalog] = useState<InvoiceProductItem[]>([]);
+  const [capacities, setCapacities] = useState<RequiredCapacity[]>([]);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(updateProposalSchema) as any,
@@ -82,7 +92,7 @@ export default function EditProposalPage() {
       discountAmount: 0,
       terms: '',
       notes: '',
-      items: [],
+      items: [{ description: '', quantity: 1, unitPrice: 0, systemPrice: 0, ksebFee: 0, itemTaxRate: 0 }],
     },
   });
 
@@ -100,6 +110,28 @@ export default function EditProposalPage() {
     }
     loadBranches();
   }, []);
+
+  useEffect(() => {
+    getInvoiceProductCatalog().then((result) => { setCatalog(result.catalog || []); setCapacities(result.requiredCapacities || []); }).catch((error) => toast.error(error instanceof Error ? error.message : 'Could not load invoice products.'));
+  }, []);
+
+  const applyInvoiceCustomer = (customer: InvoiceCustomer) => {
+    form.setValue('clientName', customer.name);
+    form.setValue('clientEmail', customer.email || '');
+    form.setValue('clientPhone', customer.phone || '');
+    form.setValue('clientAddress', customer.address || '');
+  };
+
+  const addCapacity = (capacity: RequiredCapacity) => {
+    const grandTotal = capacity.grandTotal || capacity.courseFee + capacity.admissionFee;
+    append({ description: capacity.description || `${capacity.name} Solar System${capacity.brand ? ` with ${capacity.brand} Panels` : ''}`, quantity: 1, unitPrice: grandTotal, panelBrand: capacity.brand || null, systemPrice: capacity.courseFee, ksebFee: capacity.admissionFee, afterSubsidy: capacity.afterSubsidy ?? null, itemTaxRate: 0 });
+  };
+
+  const addCatalogItem = (product: InvoiceProductItem) => {
+    const capacity = capacities.find((entry) => entry.id === product.capacityId || entry.id === product.id);
+    if (capacity) { addCapacity(capacity); return; }
+    append({ description: product.description || product.name, quantity: product.quantity || 1, unitPrice: product.price, systemPrice: product.price, ksebFee: 0, itemTaxRate: 0 });
+  };
 
   useEffect(() => {
     const fetchProposal = async () => {
@@ -130,6 +162,11 @@ export default function EditProposalPage() {
                     description: item.description,
                     quantity: Number(item.quantity) || 1,
                     unitPrice: Number(item.unitPrice) || 0,
+                    panelBrand: item.panelBrand || null,
+                    systemPrice: item.systemPrice == null ? Number(item.unitPrice) || 0 : Number(item.systemPrice),
+                    ksebFee: Number(item.ksebFee) || 0,
+                    afterSubsidy: item.afterSubsidy == null ? null : Number(item.afterSubsidy),
+                    itemTaxRate: Number(item.itemTaxRate) || 0,
                   }))
                 : [{ description: '', quantity: 1, unitPrice: 0 }],
           });
@@ -153,8 +190,9 @@ export default function EditProposalPage() {
   const taxRate = Number(form.watch('taxRate') || 0);
   const discountAmount = Number(form.watch('discountAmount') || 0);
 
+  const itemTaxTotal = watchedItems.reduce((sum, item) => sum + (Number(item?.quantity) || 0) * (Number(item?.unitPrice) || 0) * (Number(item?.itemTaxRate) || 0) / 100, 0);
   const subtotal = watchedItems.reduce(
-    (sum, item) => sum + (Number(item?.quantity) || 0) * (Number(item?.unitPrice) || 0),
+    (sum, item) => sum + (Number(item?.quantity) || 0) * (Number(item?.unitPrice) || 0) * (1 + (Number(item?.itemTaxRate) || 0) / 100),
     0
   );
   const taxAmount = (subtotal * taxRate) / 100;
@@ -212,6 +250,7 @@ export default function EditProposalPage() {
             <CardTitle className="text-base font-semibold">Client & Subject Information</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 pt-5">
+            <div className="grid gap-2"><Label>Invoice Customer</Label><ProposalCustomerPicker onSelect={applyInvoiceCustomer} /></div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label htmlFor="clientName">
@@ -288,13 +327,17 @@ export default function EditProposalPage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}
+              onClick={() => append({ description: '', quantity: 1, unitPrice: 0, systemPrice: 0, ksebFee: 0, itemTaxRate: 0 })}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
               Add Item
             </Button>
           </CardHeader>
           <CardContent className="pt-5 space-y-4">
+            <Select onValueChange={(productId) => { const capacity = capacities.find((item) => item.id === productId); if (capacity) { addCapacity(capacity); return; } const product = catalog.find((item) => item.id === productId); if (product) addCatalogItem(product); }}>
+              <SelectTrigger className="max-w-md"><SelectValue placeholder="Choose invoice catalog product…" /></SelectTrigger>
+              <SelectContent>{capacities.map((item) => <SelectItem key={`capacity-${item.id}`} value={item.id}>{item.name}{item.brand ? ` · ${item.brand} Panels` : ''} · ₹{(item.grandTotal || item.courseFee + item.admissionFee).toLocaleString('en-IN')}</SelectItem>)}{catalog.filter((item) => item.category !== 'capacity').map((item) => <SelectItem key={`product-${item.id}`} value={item.id}>{item.name} · ₹{item.price.toLocaleString('en-IN')}</SelectItem>)}</SelectContent>
+            </Select>
             {fields.map((field, index) => (
               <div
                 key={field.id}
@@ -310,6 +353,13 @@ export default function EditProposalPage() {
                   )}
                 </div>
 
+                <div className="w-full grid grid-cols-2 md:w-[420px] gap-2">
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">Panel</Label><Input value={watchedItems[index]?.panelBrand || ''} placeholder="Panel brand" onChange={(e) => form.setValue(`items.${index}.panelBrand`, e.target.value || null)} /></div>
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">System Price (₹)</Label><Input type="number" min="0" value={watchedItems[index]?.systemPrice ?? 0} onChange={(e) => { const systemPrice = Number(e.target.value); form.setValue(`items.${index}.systemPrice`, systemPrice); form.setValue(`items.${index}.unitPrice`, systemPrice + (Number(watchedItems[index]?.ksebFee) || 0)); }} /></div>
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">KSEB Bill (₹)</Label><Input type="number" min="0" value={watchedItems[index]?.ksebFee ?? 0} onChange={(e) => { const ksebFee = Number(e.target.value); form.setValue(`items.${index}.ksebFee`, ksebFee); form.setValue(`items.${index}.unitPrice`, (Number(watchedItems[index]?.systemPrice) || 0) + ksebFee); }} /></div>
+                  <div className="grid gap-1"><Label className="text-xs text-muted-foreground">After Subsidy (₹)</Label><Input type="number" min="0" value={watchedItems[index]?.afterSubsidy ?? ''} onChange={(e) => form.setValue(`items.${index}.afterSubsidy`, e.target.value === '' ? null : Number(e.target.value))} /></div>
+                </div>
+
                 <div className="flex items-center gap-3 w-full md:w-auto">
                   <div className="w-24 grid gap-1.5">
                     <Label className="text-xs text-muted-foreground">Qty</Label>
@@ -321,21 +371,25 @@ export default function EditProposalPage() {
                   </div>
 
                   <div className="w-36 grid gap-1.5">
-                    <Label className="text-xs text-muted-foreground">Price (₹)</Label>
+                    <Label className="text-xs text-muted-foreground">Grand Total (₹)</Label>
                     <Input
                       type="number"
                       min="0"
                       step="any"
-                      {...form.register(`items.${index}.unitPrice`, { valueAsNumber: true })}
+                      value={watchedItems[index]?.unitPrice ?? 0}
+                      readOnly
+                      aria-label="Grand total from system price and KSEB bill"
                     />
                   </div>
+
+                  <div className="w-28 grid gap-1.5"><Label className="text-xs text-muted-foreground">Item Tax (%)</Label><Input type="number" min="0" max="100" step="0.01" {...form.register(`items.${index}.itemTaxRate`, { valueAsNumber: true })} /></div>
 
                   <div className="w-36 grid gap-1.5 text-right">
                     <Label className="text-xs text-muted-foreground">Total</Label>
                     <div className="h-9 px-3 flex items-center justify-end font-semibold text-sm bg-white dark:bg-zinc-950 border rounded-md">
                       ₹
                       {(
-                        (watchedItems[index]?.quantity || 0) * (watchedItems[index]?.unitPrice || 0)
+                        (watchedItems[index]?.quantity || 0) * (watchedItems[index]?.unitPrice || 0) * (1 + (watchedItems[index]?.itemTaxRate || 0) / 100)
                       ).toLocaleString('en-IN')}
                     </div>
                   </div>
@@ -410,11 +464,12 @@ export default function EditProposalPage() {
 
               <div className="bg-muted/30 border rounded-xl p-5 space-y-3">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Subtotal:</span>
+                  <span>Subtotal (includes item tax):</span>
                   <span className="font-medium text-foreground">
                     ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
+                {itemTaxTotal > 0 && <div className="flex justify-between text-sm text-muted-foreground"><span>Item taxes included:</span><span>+₹{itemTaxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>}
                 {taxRate > 0 && (
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>GST ({taxRate}%):</span>
