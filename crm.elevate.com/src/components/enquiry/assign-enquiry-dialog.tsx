@@ -201,13 +201,7 @@ export function AssignEnquiryDialog({
     }
 
     // Validate start date is not in the past
-    const today = startOfDay(new Date());
-    const start = startOfDay(startDate);
-
-    if (start < today) {
-      toast.error('Start date cannot be in the past');
-      return;
-    }
+    
 
     if (startDate > endDate) {
       toast.error('Start date cannot be after end date');
@@ -403,10 +397,7 @@ export function AssignEnquiryDialog({
                     mode="single"
                     selected={startDate}
                     onSelect={setStartDate}
-                    disabled={(date) => {
-                      const today = startOfDay(new Date());
-                      return date < today || (endDate ? date > endDate : false);
-                    }}
+                    disabled={(date) => (endDate ? date > endDate : false)}
                     initialFocus
                   />
                 </PopoverContent>
