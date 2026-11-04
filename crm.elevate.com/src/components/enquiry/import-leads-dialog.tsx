@@ -30,9 +30,10 @@ import { Branch } from '@/types/data-management';
 interface ImportLeadsDialogProps {
   onSuccess?: () => void;
   branches?: Branch[];
+  trigger?: React.ReactNode;
 }
 
-export function ImportLeadsDialog({ onSuccess, branches: passedBranches }: ImportLeadsDialogProps) {
+export function ImportLeadsDialog({ onSuccess, branches: passedBranches, trigger }: ImportLeadsDialogProps) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [branchId, setBranchId] = useState<string>('');
@@ -115,10 +116,12 @@ export function ImportLeadsDialog({ onSuccess, branches: passedBranches }: Impor
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Upload className="mr-2 h-4 w-4" />
-          Import Leads
-        </Button>
+        {trigger ?? (
+          <Button variant="outline">
+            <Upload className="mr-2 h-4 w-4" />
+            Import Leads
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

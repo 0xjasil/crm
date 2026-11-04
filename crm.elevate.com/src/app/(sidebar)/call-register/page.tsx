@@ -42,6 +42,7 @@ import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CallLogMobileCard } from '@/components/call-log/call-log-mobile-card';
 
 export default function CallRegisterPage() {
   const [outcomeFilter, setOutcomeFilter] = useState('all');
@@ -238,7 +239,7 @@ export default function CallRegisterPage() {
           />
         </div>
 
-        <div className="flex w-full sm:w-auto items-center gap-2">
+        <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-2">
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs">
               <SelectValue placeholder="Date Range" />
@@ -301,82 +302,106 @@ export default function CallRegisterPage() {
               }
             />
           ) : (
-            <div className="relative overflow-x-auto">
+            <div className="relative">
               {isLoading && (
                 <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-10">
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
               )}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[160px]">Timestamp</TableHead>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Telecaller</TableHead>
-                    <TableHead>Outcome</TableHead>
-                    <TableHead className="w-[100px]">Duration</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead className="w-[80px] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {callLogs.map((callLog) => (
-                    <TableRow key={callLog.id} className="hover:bg-muted/40 transition-colors">
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-medium text-foreground">
-                            {new Date(callLog.callDate).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {new Date(callLog.callDate).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/enquiries/${callLog.enquiry.id}`}
-                          className="font-medium text-xs text-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
-                        >
-                          {callLog.enquiry.candidateName}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {callLog.enquiry.phone}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {callLog.createdBy.name}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          {getCallTypeIcon(callLog.outcome || '')}
-                          <StatusBadge status={callLog.outcome || 'DEFAULT'} />
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs font-medium text-foreground">
-                        {formatDuration(callLog.duration || 0)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-[280px] truncate text-xs text-muted-foreground" title={callLog.notes || ''}>
-                          {callLog.notes || '—'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild className="h-8 px-2.5 text-xs">
-                          <Link href={`/enquiries/${callLog.enquiry.id}`}>View</Link>
-                        </Button>
-                      </TableCell>
+
+              {/* Mobile Card View */}
+              <div className="block md:hidden p-3 sm:p-4 space-y-3">
+                {callLogs.map((callLog) => (
+                  <CallLogMobileCard
+                    key={callLog.id}
+                    callLog={callLog}
+                    formatDuration={formatDuration}
+                    formatTimestamp={(d) =>
+                      new Date(d).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    }
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[160px]">Timestamp</TableHead>
+                      <TableHead>Candidate</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Telecaller</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead className="w-[100px]">Duration</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead className="w-[80px] text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {callLogs.map((callLog) => (
+                      <TableRow key={callLog.id} className="hover:bg-muted/40 transition-colors">
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium text-foreground">
+                              {new Date(callLog.callDate).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {new Date(callLog.callDate).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/enquiries/${callLog.enquiry.id}`}
+                            className="font-medium text-xs text-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            {callLog.enquiry.candidateName}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {callLog.enquiry.phone}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {callLog.createdBy.name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            {getCallTypeIcon(callLog.outcome || '')}
+                            <StatusBadge status={callLog.outcome || 'DEFAULT'} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs font-medium text-foreground">
+                          {formatDuration(callLog.duration || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[280px] truncate text-xs text-muted-foreground" title={callLog.notes || ''}>
+                            {callLog.notes || '—'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" asChild className="h-8 px-2.5 text-xs">
+                            <Link href={`/enquiries/${callLog.enquiry.id}`}>View</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Pagination */}
               {pagination && (

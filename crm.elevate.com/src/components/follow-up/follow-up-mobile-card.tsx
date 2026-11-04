@@ -1,187 +1,176 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
-  Phone, Mail,
+  Phone,
+  Mail,
   Eye,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
   Calendar,
-  FileText
+  FileText,
+  CheckCircle,
+  MoreVertical,
 } from 'lucide-react';
 import Link from 'next/link';
 import { FollowUp } from '@/types/enquiry';
-import { FOLLOW_UP_STATUS_OPTIONS } from '@/constants/enquiry';
 import { IconBrandWhatsapp } from '@tabler/icons-react';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface FollowUpMobileCardProps {
   followUp: FollowUp;
   onUpdate: (followUp: FollowUp) => void;
 }
 
-export function FollowUpMobileCard({ followUp, onUpdate }: FollowUpMobileCardProps) {
-  const getStatusColor = (status: string) => {
-    const statusOption = FOLLOW_UP_STATUS_OPTIONS.find((option) => option.value === status);
-    return statusOption
-      ? `bg-${statusOption.color}-100 text-${statusOption.color}-800`
-      : 'bg-gray-100 text-gray-800';
-  };
+export const FollowUpMobileCard = memo(function FollowUpMobileCard({
+  followUp,
+  onUpdate,
+}: FollowUpMobileCardProps) {
+  const formatDateTime = (date: string | Date) =>
+    new Date(date).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'COMPLETED':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'CANCELLED':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'RESCHEDULED':
-        return <AlertCircle className="h-4 w-4 text-blue-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
-    }
-  };
+  const isOverdue = (scheduledAt: string | Date, status: string) =>
+    new Date(scheduledAt) < new Date() && status === 'PENDING';
 
-  const formatDateTime = (date: string | Date) => {
-    return new Date(date).toLocaleString();
-  };
+  const overdue = isOverdue(followUp.scheduledAt, followUp.status);
 
-  const isOverdue = (scheduledAt: string | Date, status: string) => {
-    return new Date(scheduledAt) < new Date() && status === 'PENDING';
-  };
-
-  const handleCall = (phone: string) => {
+  const handleCall = (e: React.MouseEvent, phone: string) => {
+    e.stopPropagation();
     window.open(`tel:${phone}`, '_self');
   };
 
-  const handleWhatsApp = (phone: string) => {
+  const handleWhatsApp = (e: React.MouseEvent, phone: string) => {
+    e.stopPropagation();
     const cleanPhone = phone.replace(/[^\d]/g, '');
     window.open(`https://wa.me/${cleanPhone}`, '_blank');
   };
 
-  const handleEmail = (email?: string) => {
-    if (email) {
-      window.open(`mailto:${email}`, '_self');
-    }
+  const handleEmail = (e: React.MouseEvent, email?: string) => {
+    e.stopPropagation();
+    if (email) window.open(`mailto:${email}`, '_self');
   };
 
   return (
-    <Card className="w-full">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
+    <Card className="w-full border-border/80 shadow-xs hover:border-border transition-colors">
+      <CardContent className="p-3.5 space-y-3">
+        {/* Header: Name, status & actions */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge status={followUp.status} size="sm" />
+              {overdue && <StatusBadge status="OVERDUE" size="sm" />}
+            </div>
             <Link
               href={`/enquiries/${followUp.enquiry.id}`}
-              className="text-blue-600 hover:underline"
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="font-semibold text-lg text-blue-600 mb-1">
+              <h3 className="font-semibold text-sm text-foreground mt-1 line-clamp-1 hover:text-primary transition-colors">
                 {followUp.enquiry.candidateName}
               </h3>
             </Link>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex items-center space-x-2">
-                {getStatusIcon(followUp.status)}
-                <Badge className={getStatusColor(followUp.status)}>
-                  {FOLLOW_UP_STATUS_OPTIONS.find((opt) => opt.value === followUp.status)?.label || followUp.status}
-                </Badge>
-              </div>
-              {isOverdue(followUp.scheduledAt, followUp.status) && (
-                <Badge variant="destructive" className="text-xs">
-                  Overdue
-                </Badge>
-              )}
-            </div>
+            <p className="font-mono text-[11px] text-muted-foreground mt-0.5">
+              {followUp.enquiry.phone}
+            </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdate(followUp)}
-            className="ml-2"
-          >
-            Update
-          </Button>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Button
-            size="icon"
-            variant="outline"
-            className="flex-1"
-            onClick={() => handleCall(followUp.enquiry.phone)}
-          >
-            <Phone className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="flex-1"
-            onClick={() => handleWhatsApp(followUp.enquiry.phone)}
-          >
-            <IconBrandWhatsapp className="size-4" />
-          </Button>
-          {followUp.enquiry.email && (
+          {/* Actions */}
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               size="icon"
               variant="outline"
-              className="flex-1"
-              onClick={() => handleEmail(followUp.enquiry.email)}
+              className="h-8 w-8 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+              onClick={(e) => handleCall(e, followUp.enquiry.phone)}
+              title="Call"
             >
-              <Mail className="size-4" />
+              <Phone className="size-3.5" />
             </Button>
-          )}
-          <Button variant="outline" size="icon" asChild className="flex-shrink-0">
-            <Link href={`/enquiries/${followUp.enquiry.id}`}>
-              <Eye className="size-4" />
-            </Link>
-          </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+              onClick={(e) => handleWhatsApp(e, followUp.enquiry.phone)}
+              title="WhatsApp"
+            >
+              <IconBrandWhatsapp className="size-3.5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="size-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="text-xs">
+                <DropdownMenuItem onClick={() => onUpdate(followUp)}>
+                  <CheckCircle className="mr-2 size-3.5" />
+                  Update Status
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/enquiries/${followUp.enquiry.id}`}>
+                    <Eye className="mr-2 size-3.5" />
+                    View Enquiry
+                  </Link>
+                </DropdownMenuItem>
+                {followUp.enquiry.email && (
+                  <DropdownMenuItem onClick={(e) => handleEmail(e as any, followUp.enquiry.email)}>
+                    <Mail className="mr-2 size-3.5" />
+                    Send Email
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        {/* Contact Information */}
-        <div className="space-y-2 text-sm mb-4">
-          <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-gray-500" />
-            <span className="font-mono">{followUp.enquiry.phone}</span>
+        {/* Scheduled date + notes */}
+        <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground pt-1.5 border-t border-border/50">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="size-3.5 text-muted-foreground/70 shrink-0" />
+            <span className="text-[11px]">
+              Scheduled: <span className="font-medium text-foreground">{formatDateTime(followUp.scheduledAt)}</span>
+            </span>
           </div>
-          {followUp.enquiry.email && (
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-gray-500" />
-              <span className="text-muted-foreground">{followUp.enquiry.email}</span>
-            </div>
-          )}
-        </div>
 
-        {/* Follow-up Details */}
-        <div className="pt-3 border-t border-gray-100 space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-gray-500" />
-            <span className="font-medium">Scheduled:</span>
-            <span>{formatDateTime(followUp.scheduledAt)}</span>
-          </div>
           {followUp.notes && (
-            <div className="flex items-start gap-2">
-              <FileText className="h-4 w-4 text-gray-500 mt-0.5" />
-              <div>
-                <span className="font-medium">Notes:</span>
-                <p className="text-muted-foreground mt-1">{followUp.notes}</p>
-              </div>
+            <div className="flex items-start gap-1.5">
+              <FileText className="size-3.5 text-muted-foreground/70 shrink-0 mt-0.5" />
+              <p className="text-[11px] line-clamp-2">{followUp.notes}</p>
             </div>
           )}
+
           {followUp.outcome && (
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-gray-500 mt-0.5" />
-              <div>
-                <span className="font-medium">Outcome:</span>
-                <p className="text-muted-foreground mt-1">{followUp.outcome}</p>
-              </div>
+            <div className="flex items-start gap-1.5">
+              <CheckCircle className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] line-clamp-2 text-foreground">
+                <span className="font-medium">Outcome: </span>{followUp.outcome}
+              </p>
             </div>
           )}
         </div>
+
+        {/* Update action */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onUpdate(followUp)}
+          className="w-full h-8 text-xs font-medium"
+        >
+          <CheckCircle className="mr-1.5 size-3.5" />
+          Update Follow-up
+        </Button>
       </CardContent>
     </Card>
   );
-}
+});

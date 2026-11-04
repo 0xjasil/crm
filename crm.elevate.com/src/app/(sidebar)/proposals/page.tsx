@@ -38,6 +38,7 @@ import { getProposals, deleteProposal } from '@/server/actions/proposal/proposal
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ProposalMobileCard } from '@/components/proposal/proposal-mobile-card';
 
 export default function ProposalsPage() {
   const router = useRouter();
@@ -184,8 +185,24 @@ export default function ProposalsPage() {
               }
             />
           ) : (
-            <div className="relative overflow-x-auto">
-              <Table>
+            <div className="relative">
+              {/* Mobile Card View */}
+              <div className="block md:hidden p-3 sm:p-4 space-y-3">
+                {filteredProposals.map((proposal) => (
+                  <ProposalMobileCard
+                    key={proposal.id}
+                    proposal={proposal}
+                    onView={(id) => router.push(`/proposals/${id}`)}
+                    onEdit={(id) => router.push(`/proposals/${id}/edit`)}
+                    onDelete={(id) => setDeleteId(id)}
+                    formatDate={formatDate}
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[140px]">Proposal No.</TableHead>
@@ -276,6 +293,7 @@ export default function ProposalsPage() {
                 </TableBody>
               </Table>
             </div>
+          </div>
           )}
         </CardContent>
       </Card>

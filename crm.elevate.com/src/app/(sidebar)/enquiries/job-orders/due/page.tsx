@@ -180,67 +180,70 @@ export default function DueJobOrdersPage() {
                 {search ? 'No job orders match your search' : 'No overdue job orders found'}
               </div>
             </div>
-          ) : isMobile ? (
-            <div className="space-y-4">
-              {filteredJobOrders.map((jobOrder) => {
-                const counts = getStatusCounts(jobOrder);
-                return (
-                  <Card key={jobOrder.id} className="p-4 border-red-200 bg-red-50/10">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg">{jobOrder.name}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {jobOrder.jobCode || `ID: ${jobOrder.id.slice(0, 8)}...`}
-                          </p>
-                          {jobOrder.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {jobOrder.description}
-                            </p>
-                          )}
-                          <p className="text-sm text-muted-foreground">
-                            {jobOrder.manager.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {jobOrder.branch.name}
-                          </p>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewJobOrder(jobOrder.id)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Start Date:</span>
-                          <p className="font-medium">{formatDate(jobOrder.startDate)}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">End Date:</span>
-                          <p className="font-medium text-red-600">{formatDate(jobOrder.endDate)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">Total: {counts.total}</Badge>
-                        <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">Pending: {counts.pending}</Badge>
-                        <Badge variant="default">Closed: {counts.closed}</Badge>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile Card View */}
+              <div className="block md:hidden space-y-3">
+                {filteredJobOrders.map((jobOrder) => {
+                  const counts = getStatusCounts(jobOrder);
+                  return (
+                    <Card key={jobOrder.id} className="p-4 border-red-200 bg-red-50/10">
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-semibold text-lg">{jobOrder.name}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {jobOrder.jobCode || `ID: ${jobOrder.id.slice(0, 8)}...`}
+                            </p>
+                            {jobOrder.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {jobOrder.description}
+                              </p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              {jobOrder.manager.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {jobOrder.branch.name}
+                            </p>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewJobOrder(jobOrder.id)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Start Date:</span>
+                            <p className="font-medium">{formatDate(jobOrder.startDate)}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">End Date:</span>
+                            <p className="font-medium text-red-600">{formatDate(jobOrder.endDate)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">Total: {counts.total}</Badge>
+                          <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">Pending: {counts.pending}</Badge>
+                          <Badge variant="default">Closed: {counts.closed}</Badge>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -314,7 +317,8 @@ export default function DueJobOrdersPage() {
                 </TableBody>
               </Table>
             </div>
-          )}
+          </>
+        )}
 
           {/* Pagination */}
           {pagination && pagination.pages > 1 && (

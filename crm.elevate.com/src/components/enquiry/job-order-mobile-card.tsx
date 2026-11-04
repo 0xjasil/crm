@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,20 +11,27 @@ import {
   Calendar,
   User,
   MapPin,
-  Briefcase
+  MoreVertical,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-  } from "@/components/ui/alert-dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface JobOrder {
   id: string;
@@ -49,100 +57,123 @@ interface JobOrderMobileCardProps {
   isAdmin: boolean;
 }
 
-export function JobOrderMobileCard({ jobOrder, onView, onDelete, isAdmin }: JobOrderMobileCardProps) {
-  const formatDate = (date: Date) => {
-    return format(new Date(date), 'MMM dd, yyyy');
+export const JobOrderMobileCard = memo(function JobOrderMobileCard({
+  jobOrder,
+  onView,
+  onDelete,
+  isAdmin,
+}: JobOrderMobileCardProps) {
+  const formatDate = (date: Date) => format(new Date(date), 'MMM dd, yyyy');
+
+  const getProgressColor = (value: number) => {
+    if (value >= 80) return 'text-emerald-600 dark:text-emerald-400';
+    if (value >= 40) return 'text-amber-600 dark:text-amber-400';
+    return 'text-rose-600 dark:text-rose-400';
   };
 
   return (
-    <Card className="w-full">
-      <CardContent className="p-3">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1 min-w-0 mr-2">
-             <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-mono text-muted-foreground">
-                    #{jobOrder.id.slice(-6)}
-                </span>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
-                    {jobOrder._count?.jobLeads || 0} Leads
-                </Badge>
-             </div>
-            <h3 className="font-semibold text-base text-gray-900 truncate leading-tight">
+    <Card className="w-full border-border/80 shadow-xs hover:border-border transition-colors cursor-pointer" onClick={() => onView(jobOrder.id)}>
+      <CardContent className="p-3.5 space-y-3">
+        {/* Header: ID, leads badge, progress, actions */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-xs font-bold text-primary">
+                #{jobOrder.id.slice(-6)}
+              </span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                {jobOrder._count?.jobLeads ?? 0} Leads
+              </Badge>
+            </div>
+            <h3 className="font-semibold text-sm text-foreground mt-1 line-clamp-1">
               {jobOrder.name}
             </h3>
           </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-             <div className="flex items-center gap-1.5">
-               <Progress value={jobOrder.progress} className="w-12 h-2" />
-               <span className="text-xs font-medium w-8 text-right">{jobOrder.progress}%</span>
-             </div>
-          </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0 hover:bg-muted"
-            onClick={() => onView(jobOrder.id)}
-            title="View Details"
-          >
-            <Eye className="h-4 w-4 text-blue-500" />
-          </Button>
+          {/* Progress + Actions */}
+          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-end gap-0.5 mr-1">
+              <span className={`text-xs font-bold tabular-nums ${getProgressColor(jobOrder.progress)}`}>
+                {jobOrder.progress}%
+              </span>
+              <Progress value={jobOrder.progress} className="w-14 h-1.5" />
+            </div>
 
-          {isAdmin && (
-             <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 shrink-0 hover:bg-red-50 text-red-600 hover:text-red-700"
-                        title="Delete"
-                    >
-                        <Trash2 className="h-4 w-4" />
+            {isAdmin ? (
+              <AlertDialog>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="size-4 text-muted-foreground" />
                     </Button>
-                </AlertDialogTrigger>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="text-xs">
+                    <DropdownMenuItem onClick={() => onView(jobOrder.id)}>
+                      <Eye className="mr-2 size-3.5" />
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive">
+                        <Trash2 className="mr-2 size-3.5" />
+                        Delete Job Order
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the job order
-                            and remove all associated data.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(jobOrder.id)} className="bg-red-600 hover:bg-red-700">
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this job order?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the job order and
+                      remove all associated data.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(jobOrder.id)}
+                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
                 </AlertDialogContent>
-             </AlertDialog>
-          )}
+              </AlertDialog>
+            ) : (
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                onClick={() => onView(jobOrder.id)}
+                title="View Details"
+              >
+                <Eye className="size-3.5 text-primary" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs text-muted-foreground border-t border-gray-100 pt-2">
-          <div className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{jobOrder.branch.name}</span>
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground pt-1.5 border-t border-border/50">
+          <div className="flex items-center gap-1.5 truncate">
+            <MapPin className="size-3.5 text-muted-foreground/70 shrink-0" />
+            <span className="truncate text-[11px]">{jobOrder.branch.name}</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-             <User className="h-3.5 w-3.5 shrink-0" />
-             <span className="truncate">{jobOrder.manager.name}</span>
+          <div className="flex items-center gap-1.5 truncate">
+            <User className="size-3.5 text-muted-foreground/70 shrink-0" />
+            <span className="truncate text-[11px]">{jobOrder.manager.name}</span>
           </div>
 
           <div className="flex items-center gap-1.5 col-span-2">
-              <Calendar className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">
-                  {formatDate(jobOrder.startDate)} - {formatDate(jobOrder.endDate)}
-              </span>
+            <Calendar className="size-3.5 text-muted-foreground/70 shrink-0" />
+            <span className="text-[11px]">
+              {formatDate(jobOrder.startDate)} — {formatDate(jobOrder.endDate)}
+            </span>
           </div>
         </div>
       </CardContent>
     </Card>
   );
-}
+});

@@ -166,9 +166,9 @@ export default async function Dashboard() {
           </div>
         }
         actions={
-          <>
+          <div className="flex w-full sm:w-auto items-center gap-2 flex-wrap">
             {canAccessFollowUps && (
-              <Button size="sm" variant="outline" asChild>
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-initial" asChild>
                 <Link href="/follow-ups">
                   <IconCalendarClock className="mr-1.5 h-4 w-4" />
                   Follow-ups
@@ -176,26 +176,26 @@ export default async function Dashboard() {
               </Button>
             )}
             {primaryHeaderAction && (
-              <Button size="sm" asChild>
+              <Button size="sm" className="flex-1 sm:flex-initial" asChild>
                 <Link href={primaryHeaderAction.href}>
                   <primaryHeaderAction.icon className="mr-1.5 h-4 w-4" />
                   {primaryHeaderAction.label}
                 </Link>
               </Button>
             )}
-          </>
+          </div>
         }
       />
 
       {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {primaryKpis.map((kpi) => (
           <KpiCard key={kpi.title} {...kpi} />
         ))}
       </div>
 
       {/* Follow-up Priority Queues */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {followUpKpis.map((kpi) => (
           <KpiCard key={kpi.title} {...kpi} />
         ))}
@@ -256,7 +256,7 @@ export default async function Dashboard() {
           <CardDescription className="text-xs">Live conversion rates and aggregate engagement metrics</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {performanceKpis.map((kpi) => (
               <KpiCard key={kpi.title} {...kpi} showChevron={false} />
             ))}

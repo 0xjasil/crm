@@ -245,40 +245,36 @@ export default function FollowUpsPage() {
       />
 
       {/* Filters Toolbar */}
-      <Card className="border border-border/80 shadow-xs">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by candidate name or phone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8.5 h-9 text-sm"
-              />
-            </div>
+      <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by candidate name or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8.5 h-9 text-sm"
+          />
+        </div>
 
-            <div className="w-full sm:w-52">
-              <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="All Follow-ups" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Follow-ups</SelectItem>
-                  <SelectItem value="pending">Pending Only</SelectItem>
-                  <SelectItem value="overdue">Overdue Attention</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="w-full sm:w-52">
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="All Follow-ups" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Follow-ups</SelectItem>
+              <SelectItem value="pending">Pending Only</SelectItem>
+              <SelectItem value="overdue">Overdue Attention</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Follow-ups Table */}
       <Card className="border border-border/80 shadow-xs overflow-hidden">
-        <CardHeader className="py-4 px-6 border-b border-border/60 bg-card">
-          <CardTitle className="text-base font-semibold">
+        <CardHeader className="py-3 px-4 border-b border-border/60 bg-muted/20">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Follow-up Schedule {pagination && `(${pagination.total} total)`}
           </CardTitle>
         </CardHeader>
@@ -305,19 +301,19 @@ export default function FollowUpsPage() {
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
               )}
-              {isMobile ? (
-                // Mobile Card View
-                <div className="p-4 space-y-3">
-                  {followUps.map((followUp) => (
-                    <FollowUpMobileCard
-                      key={followUp.id}
-                      followUp={followUp}
-                      onUpdate={openUpdateDialog}
-                    />
-                  ))}
-                </div>
-              ) : (
-                // Desktop Table View
+              {/* Mobile Card View */}
+              <div className="block md:hidden p-3 sm:p-4 space-y-3">
+                {followUps.map((followUp) => (
+                  <FollowUpMobileCard
+                    key={followUp.id}
+                    followUp={followUp}
+                    onUpdate={openUpdateDialog}
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -378,7 +374,7 @@ export default function FollowUpsPage() {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </div>
 
               {/* Pagination */}
               {pagination && (
@@ -398,7 +394,7 @@ export default function FollowUpsPage() {
 
       {/* Update Dialog */}
       <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Update Follow-up</DialogTitle>
             <DialogDescription>

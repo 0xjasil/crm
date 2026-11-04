@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Filter, Eye, Edit, Trash2, MoreVertical, UserPlus, ListTodo, Briefcase, FileText } from 'lucide-react';
+import { Search, Filter, Eye, Edit, Trash2, MoreVertical, UserPlus, ListTodo, Briefcase, FileText, Download, X } from 'lucide-react';
 import { fetchEnquiries } from '@/lib/api/enquiry-api';
 import { getAllBranches } from '@/server/actions/data-management';
 import { ENQUIRY_STATUS_OPTIONS } from '@/constants/enquiry';
@@ -257,17 +257,55 @@ export default function EnquiriesPage() {
         title="Enquiries"
         description="Manage, assign, and track all incoming lead enquiries"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full sm:w-auto items-center gap-2">
+            {/* Job Orders — icon-only on mobile */}
             <Button
               variant="outline"
               size="sm"
+              className="h-9 w-9 p-0 sm:w-auto sm:px-3 shrink-0"
               onClick={() => router.push('/enquiries/job-orders')}
+              title="Job Orders"
+              aria-label="Job Orders"
             >
-              <Briefcase className="mr-1.5 h-4 w-4" />
-              Job Orders
+              <Briefcase className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1.5">Job Orders</span>
             </Button>
-            <ImportLeadsDialog branches={branches} onSuccess={refreshEnquiries} />
-            <EnquiryFormDialog branches={branches} mode="create" onSuccess={refreshEnquiries} />
+
+            {/* Import Leads — icon-only on mobile */}
+            <ImportLeadsDialog
+              branches={branches}
+              onSuccess={refreshEnquiries}
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0 sm:w-auto sm:px-3 shrink-0"
+                  title="Import Leads"
+                  aria-label="Import Leads"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1.5">Import Leads</span>
+                </Button>
+              }
+            />
+
+            {/* Add Enquiry — icon-only on mobile */}
+            <EnquiryFormDialog
+              branches={branches}
+              mode="create"
+              onSuccess={refreshEnquiries}
+              trigger={
+                <Button
+                  size="sm"
+                  className="h-9 w-9 p-0 sm:w-auto sm:px-3 shrink-0"
+                  title="New Enquiry"
+                  aria-label="New Enquiry"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1.5">New Enquiry</span>
+                </Button>
+              }
+            />
           </div>
         }
       />
@@ -312,47 +350,79 @@ export default function EnquiriesPage() {
               </div>
             )}
 
-            {/* Assigned Status Filter */}
-            <div className="w-full md:w-40">
-              <Select
-                value={filterAssigned}
-                onValueChange={(value) => {
-                  setFilterAssigned(value);
-                  setCurrentPage(1);
-                }}
-                disabled={isBulkSelectionEnabled}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Assignment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {canAssign && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant={isBulkSelectionEnabled ? "secondary" : "outline"}
-                  onClick={toggleBulkSelection}
+            {/* Controls Row: Assigned Status Filter, Bulk Actions, Export */}
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              {/* Assigned Status Filter */}
+              <div className="flex-1 min-w-[120px] md:w-40 md:flex-initial">
+                <Select
+                  value={filterAssigned}
+                  onValueChange={(value) => {
+                    setFilterAssigned(value);
+                    setCurrentPage(1);
+                  }}
+                  disabled={isBulkSelectionEnabled}
                 >
-                  <ListTodo className="mr-1.5 h-4 w-4" />
-                  {isBulkSelectionEnabled ? 'Cancel' : 'Bulk Assign'}
-                </Button>
-
-                {isBulkSelectionEnabled && selectedEnquiryIds.length > 0 && (
-                  <Button size="sm" onClick={handleBulkAssign}>
-                    <UserPlus className="mr-1.5 h-4 w-4" />
-                    Assign ({selectedEnquiryIds.length})
-                  </Button>
-                )}
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Assignment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-            <Button size="sm" variant="outline">Export</Button>
+
+              {canAssign && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant={isBulkSelectionEnabled ? "secondary" : "outline"}
+                    onClick={toggleBulkSelection}
+                    className="h-9 w-9 p-0 sm:w-auto sm:px-3 shrink-0"
+                    title={isBulkSelectionEnabled ? 'Cancel Bulk Assign' : 'Bulk Assign'}
+                    aria-label={isBulkSelectionEnabled ? 'Cancel Bulk Assign' : 'Bulk Assign'}
+                  >
+                    {isBulkSelectionEnabled ? (
+                      <X className="h-4 w-4" />
+                    ) : (
+                      <ListTodo className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline ml-1.5">
+                      {isBulkSelectionEnabled ? 'Cancel' : 'Bulk Assign'}
+                    </span>
+                  </Button>
+
+                  {isBulkSelectionEnabled && selectedEnquiryIds.length > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={handleBulkAssign}
+                      className="h-9 px-2.5 sm:px-3 shrink-0 text-xs sm:text-sm"
+                      title={`Assign (${selectedEnquiryIds.length})`}
+                      aria-label={`Assign (${selectedEnquiryIds.length})`}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      <span className="ml-1 font-semibold sm:hidden">
+                        {selectedEnquiryIds.length}
+                      </span>
+                      <span className="hidden sm:inline ml-1.5">
+                        Assign ({selectedEnquiryIds.length})
+                      </span>
+                    </Button>
+                  )}
+                </div>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 w-9 p-0 sm:w-auto sm:px-3 shrink-0"
+                title="Export"
+                aria-label="Export"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1.5">Export</span>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -392,21 +462,21 @@ export default function EnquiriesPage() {
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
               )}
-              {isMobile ? (
-                // Mobile Card View
-                <div className="p-4 space-y-3">
-                  {enquiries.map((enquiry) => (
-                    <EnquiryMobileCard
-                      key={enquiry.id}
-                      enquiry={enquiry}
-                      onView={handleViewEnquiry}
-                      onEdit={handleEditEnquiry}
-                      onDelete={handleDeleteEnquiry}
-                    />
-                  ))}
-                </div>
-              ) : (
-                // Desktop Table View
+              {/* Mobile Card View */}
+              <div className="block md:hidden p-3 sm:p-4 space-y-3">
+                {enquiries.map((enquiry) => (
+                  <EnquiryMobileCard
+                    key={enquiry.id}
+                    enquiry={enquiry}
+                    onView={handleViewEnquiry}
+                    onEdit={handleEditEnquiry}
+                    onDelete={handleDeleteEnquiry}
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -549,7 +619,7 @@ export default function EnquiriesPage() {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </div>
 
               {/* Pagination */}
               {pagination && (

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageContainer, PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -215,54 +216,55 @@ export default function PendingJobOrdersClient({
   // Columns: Job ID, Job Name, Counselor (Manager), Date Period, Progress, Remarks, Actions
 
   return (
-    <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
-      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Remaining Jobs List</h1>
-          <p className="text-gray-600">Manage Jobs List</p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Job Orders"
+        description="Track pending job orders, lead progress, and team assignment across all branches"
+      />
 
-      <div className="flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
-        {/* Branch Filter (Admin Only) */}
+      {/* Filters Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm">
+        <div className="relative w-full sm:flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by job name or ID..."
+            className="pl-9 h-9 text-xs bg-background"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
         {isAdmin && (
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Branch</span>
+          <div className="w-full sm:w-[200px]">
             <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Branch" />
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="All Branches" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Branch</SelectItem>
-                {branches.map(b => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
         )}
-        {/* Search */}
-        <div className="flex flex-col gap-2 md:col-span-2 lg:col-span-1">
-          <span className="text-sm font-medium">Search</span>
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              className="pl-8"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
       </div>
 
       {/* Job Orders Table */}
-      <Card>
+      <Card className="border-border/80 shadow-sm overflow-hidden">
+        <CardHeader className="py-3 px-4 border-b border-border/60 bg-muted/20 flex flex-row items-center justify-between">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Pending Job Orders {pagination?.total ? `(${pagination.total})` : ''}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           {filteredJobOrdersTable(isLoading, jobOrders, isMobile, pagination, isAdmin, isManager, handleViewJobOrder, handleDeleteJobOrder, formatDate)}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -297,70 +299,71 @@ function filteredJobOrdersTable(
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       )}
-      {isMobile ? (
-        <div className="space-y-4 p-4">
-          {jobOrders.map((job) => (
-            <JobOrderMobileCard
-              key={job.id}
-              jobOrder={job}
-              onView={handleViewJobOrder}
-              onDelete={handleDeleteJobOrder}
-              isAdmin={isAdmin}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-3 p-3 sm:p-4">
+        {jobOrders.map((job) => (
+          <JobOrderMobileCard
+            key={job.id}
+            jobOrder={job}
+            onView={handleViewJobOrder}
+            onDelete={handleDeleteJobOrder}
+            isAdmin={isAdmin}
+          />
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Job ID</TableHead>
+                <TableHead className="w-[90px]">Job ID</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Job Name</TableHead>
-                <TableHead>Leads</TableHead>
+                <TableHead className="w-[70px]">Leads</TableHead>
                 <TableHead>Counselor</TableHead>
                 <TableHead>Assigned By</TableHead>
                 <TableHead>Date Period</TableHead>
-                <TableHead>Progress</TableHead>
+                <TableHead className="w-[120px]">Progress</TableHead>
                 <TableHead>Remarks</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-[80px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {jobOrders.map((job) => (
-                <TableRow key={job.id}>
-                  <TableCell>{job.id.slice(-6)}</TableCell>
-                  <TableCell>{job.branch.name}</TableCell>
-                  <TableCell className="font-medium">{job.name}</TableCell>
-                  <TableCell>{job._count?.jobLeads || 0}</TableCell>
-                  <TableCell>{job.manager.name}</TableCell>
-                  <TableCell>{job.assigner?.name || '-'}</TableCell>
-                  <TableCell>
-                    {formatDate(job.startDate)} To {formatDate(job.endDate)}
+                <TableRow key={job.id} className="hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => handleViewJobOrder(job.id)}>
+                  <TableCell className="font-mono text-xs font-semibold text-primary">#{job.id.slice(-6)}</TableCell>
+                  <TableCell className="text-xs">{job.branch.name}</TableCell>
+                  <TableCell className="font-medium text-xs">{job.name}</TableCell>
+                  <TableCell className="text-xs">{job._count?.jobLeads || 0}</TableCell>
+                  <TableCell className="text-xs">{job.manager.name}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{job.assigner?.name || '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDate(job.startDate)} — {formatDate(job.endDate)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Progress value={job.progress} className="w-[60px]" />
-                      <span className="text-xs">{job.progress}%</span>
+                      <span className="text-xs font-medium tabular-nums">{job.progress}%</span>
                     </div>
                   </TableCell>
-                  <TableCell>{job.remarks || '-'}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-xs text-muted-foreground">{job.remarks || '—'}</TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleViewJobOrder(job.id)}>
-                        <Eye className="h-4 w-4 text-blue-500" />
+                        <Eye className="h-4 w-4 text-primary" />
                       </Button>
 
                       {(isAdmin) && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                              <Trash2 className="h-4 w-4 text-red-500" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogTitle>Delete this job order?</AlertDialogTitle>
                               <AlertDialogDescription>
                                 This action cannot be undone. This will permanently delete the job order
                                 and remove all associated data.
@@ -368,7 +371,7 @@ function filteredJobOrdersTable(
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteJobOrder(job.id)} className="bg-red-600 hover:bg-red-700">
+                              <AlertDialogAction onClick={() => handleDeleteJobOrder(job.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
                                 Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -382,8 +385,7 @@ function filteredJobOrdersTable(
             </TableBody>
           </Table>
         </div>
-      )}
-    </div>
+      </div>
   );
 }
 

@@ -279,20 +279,21 @@ function filteredJobOrdersTable(
   
     return (
         <>
-            {isMobile ? (
-                 <div className="space-y-4 p-4">
-                    {jobOrders.map((job) => (
-                        <JobOrderMobileCard
-                            key={job.id}
-                            jobOrder={job}
-                            onView={handleViewJobOrder}
-                            onDelete={handleDeleteJobOrder}
-                            isAdmin={isAdmin}
-                        />
-                    ))}
-                 </div>
-            ) : (
-                <div className="overflow-x-auto">
+             {/* Mobile Card View */}
+             <div className="block md:hidden space-y-4 p-3 sm:p-4">
+                {jobOrders.map((job) => (
+                    <JobOrderMobileCard
+                        key={job.id}
+                        jobOrder={job}
+                        onView={handleViewJobOrder}
+                        onDelete={handleDeleteJobOrder}
+                        isAdmin={isAdmin}
+                    />
+                ))}
+             </div>
+
+             {/* Desktop Table View */}
+             <div className="hidden md:block overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -364,7 +365,6 @@ function filteredJobOrdersTable(
                         </TableBody>
                     </Table>
                 </div>
-            )}
         </>
     );
 }

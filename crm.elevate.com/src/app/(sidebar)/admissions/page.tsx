@@ -63,6 +63,7 @@ import { PageContainer, PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { AdmissionMobileCard } from "@/components/admission/admission-mobile-card";
 
 const AdmissionFormDialog = dynamic(
   () => import("@/components/admission-form-dialog").then((mod) => mod.AdmissionFormDialog),
@@ -427,7 +428,7 @@ export default function AdmissionsPage() {
           />
         </div>
 
-        <div className="flex w-full sm:w-auto items-center gap-2">
+        <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-2">
           <Select
             value={courseFilter}
             onValueChange={(value) => {
@@ -506,13 +507,31 @@ export default function AdmissionsPage() {
               }
             />
           ) : (
-            <div className="relative overflow-x-auto">
+            <div className="relative">
               {isLoading && (
                 <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-10">
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
               )}
-              <Table>
+
+              {/* Mobile Card View */}
+              <div className="block md:hidden p-3 sm:p-4 space-y-3">
+                {admissions.map((admission) => (
+                  <AdmissionMobileCard
+                    key={admission.id}
+                    admission={admission}
+                    onView={handleViewAdmission}
+                    onEdit={handleEditAdmission}
+                    onDelete={(id, name) => handleDeleteAdmission({ id, candidateName: name } as any)}
+                    onReassign={(adm) => void handleOpenReassign(adm)}
+                    formatDate={formatDate}
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[140px]">Survey ID</TableHead>
@@ -644,6 +663,7 @@ export default function AdmissionsPage() {
                   })}
                 </TableBody>
               </Table>
+            </div>
 
               {/* Pagination */}
               {pagination && (

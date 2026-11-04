@@ -1,10 +1,11 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
-  Phone, Mail,
+  Phone,
+  Mail,
   Eye,
   Edit,
   Trash2,
@@ -12,12 +13,19 @@ import {
   User,
   Calendar,
   GraduationCap,
-  MapPin
+  MapPin,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Enquiry } from '@/types/enquiry';
-import { ENQUIRY_STATUS_OPTIONS } from '@/constants/enquiry';
 import { IconBrandWhatsapp } from '@tabler/icons-react';
 import { authClient } from '@/lib/auth-client';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface EnquiryMobileCardProps {
   enquiry: Enquiry;
@@ -26,151 +34,150 @@ interface EnquiryMobileCardProps {
   onDelete: (enquiryId: string, candidateName: string) => void;
 }
 
-import { memo } from 'react';
-
-export const EnquiryMobileCard = memo(function EnquiryMobileCard({ enquiry, onView, onEdit, onDelete }: EnquiryMobileCardProps) {
+export const EnquiryMobileCard = memo(function EnquiryMobileCard({
+  enquiry,
+  onView,
+  onEdit,
+  onDelete,
+}: EnquiryMobileCardProps) {
   const { data: session } = authClient.useSession();
   const currentUserId = session?.user?.id;
 
-  const getStatusColor = (status: string) => {
-    const statusOption = ENQUIRY_STATUS_OPTIONS.find((option) => option.value === status);
-    return statusOption
-      ? `bg-${statusOption.color}-100 text-${statusOption.color}-800`
-      : 'bg-gray-100 text-gray-800';
-  };
-
   const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString();
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
 
-  const handleCall = (phone: string) => {
+  const handleCall = (e: React.MouseEvent, phone: string) => {
+    e.stopPropagation();
     window.open(`tel:${phone}`, '_self');
   };
 
-  const handleWhatsApp = (phone: string) => {
+  const handleWhatsApp = (e: React.MouseEvent, phone: string) => {
+    e.stopPropagation();
     const cleanPhone = phone.replace(/[^\d]/g, '');
     window.open(`https://wa.me/${cleanPhone}`, '_blank');
   };
 
-  const handleEmail = (email?: string) => {
-    if (email) {
-      window.open(`mailto:${email}`, '_self');
-    }
+  const handleEmail = (e: React.MouseEvent, email?: string) => {
+    e.stopPropagation();
+    if (email) window.open(`mailto:${email}`, '_self');
   };
 
   return (
-    <Card className="w-full">
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base text-gray-900 truncate">
+    <Card
+      className="w-full border-border/80 shadow-xs hover:border-border transition-colors cursor-pointer"
+      onClick={() => onView(enquiry.id)}
+    >
+      <CardContent className="p-3.5 space-y-3">
+        {/* Header: Name, Status & Actions */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge status={enquiry.status} size="sm" />
+              {enquiry.branch && (
+                <span className="text-[10px] text-muted-foreground font-medium truncate">
+                  {enquiry.branch.name}
+                </span>
+              )}
+            </div>
+            <h3 className="font-semibold text-sm text-foreground mt-1 line-clamp-1">
               {enquiry.candidateName}
             </h3>
-            <Badge className={`mt-1 text-xs px-2 py-0.5 ${getStatusColor(enquiry.status)}`}>
-              {ENQUIRY_STATUS_OPTIONS.find((opt) => opt.value === enquiry.status)?.label || enquiry.status}
-            </Badge>
+            <p className="font-mono text-[11px] text-muted-foreground mt-0.5">
+              {enquiry.phone}
+            </p>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 shrink-0"
-            onClick={() => handleCall(enquiry.phone)}
-            title="Call"
-          >
-            <Phone className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 shrink-0"
-            onClick={() => handleWhatsApp(enquiry.phone)}
-            title="WhatsApp"
-          >
-            <IconBrandWhatsapp className="h-4 w-4" />
-          </Button>
-          {enquiry.email && (
+          {/* Actions */}
+          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
             <Button
               size="icon"
               variant="outline"
-              className="h-8 w-8 shrink-0"
-              onClick={() => handleEmail(enquiry.email)}
-              title="Email"
+              className="h-8 w-8 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+              onClick={(e) => handleCall(e, enquiry.phone)}
+              title="Call"
             >
-              <Mail className="h-4 w-4" />
+              <Phone className="size-3.5" />
             </Button>
-          )}
-          <div className="w-px h-6 bg-gray-200 mx-1 shrink-0" />
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0 hover:bg-muted"
-            onClick={() => onView(enquiry.id)}
-            title="View Details"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0 hover:bg-muted"
-            onClick={() => onEdit(enquiry)}
-            title="Edit"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0 hover:bg-red-50 text-red-600 hover:text-red-700"
-            onClick={() => onDelete(enquiry.id, enquiry.candidateName)}
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+              onClick={(e) => handleWhatsApp(e, enquiry.phone)}
+              title="WhatsApp"
+            >
+              <IconBrandWhatsapp className="size-3.5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="size-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="text-xs">
+                <DropdownMenuItem onClick={() => onView(enquiry.id)}>
+                  <Eye className="mr-2 size-3.5" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(enquiry)}>
+                  <Edit className="mr-2 size-3.5" />
+                  Edit Enquiry
+                </DropdownMenuItem>
+                {enquiry.email && (
+                  <DropdownMenuItem onClick={(e) => handleEmail(e as any, enquiry.email)}>
+                    <Mail className="mr-2 size-3.5" />
+                    Send Email
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onDelete(enquiry.id, enquiry.candidateName)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 size-3.5" />
+                  Delete Enquiry
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs text-muted-foreground border-t border-gray-100 pt-2">
-          {enquiry.assignedTo && (
-            <div className="flex items-center gap-1.5 col-span-2">
-              <User className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Assigned to: <span className="font-medium text-gray-700">{enquiry.assignedTo.id === currentUserId ? "Yourself" : enquiry.assignedTo.name}</span></span>
-            </div>
-          )}
-          {enquiry.assignedBy && (
-            <div className="flex items-center gap-1.5 col-span-2">
-              <User className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Assigned by: <span className="font-medium text-gray-700">{enquiry.assignedBy.id === currentUserId ? "Yourself" : enquiry.assignedBy.name}</span></span>
-            </div>
-          )}
-
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground pt-1.5 border-t border-border/50">
           {enquiry.preferredCourse && (
-            <div className="flex items-center gap-1.5 col-span-2">
-              <GraduationCap className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{enquiry.preferredCourse.name}</span>
+            <div className="flex items-center gap-1.5 col-span-2 truncate">
+              <GraduationCap className="size-3.5 text-muted-foreground/70 shrink-0" />
+              <span className="font-medium text-foreground truncate">
+                {enquiry.preferredCourse.name}
+              </span>
             </div>
           )}
 
-          {enquiry.contact2 && (
-            <div className="flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-mono">{enquiry.contact2}</span>
+          {enquiry.assignedTo && (
+            <div className="flex items-center gap-1.5 col-span-2 text-[11px]">
+              <User className="size-3.5 text-muted-foreground/70 shrink-0" />
+              <span>
+                Assigned to:{' '}
+                <span className="font-medium text-foreground">
+                  {enquiry.assignedTo.id === currentUserId ? 'Yourself' : enquiry.assignedTo.name}
+                </span>
+              </span>
             </div>
           )}
 
           <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 shrink-0" />
-            <span>{formatDate(enquiry.createdAt)}</span>
+            <Calendar className="size-3.5 text-muted-foreground/70 shrink-0" />
+            <span className="text-[11px]">{formatDate(enquiry.createdAt)}</span>
           </div>
 
           {enquiry.enquirySource && (
             <div className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{enquiry.enquirySource.name}</span>
+              <MapPin className="size-3.5 text-muted-foreground/70 shrink-0" />
+              <span className="truncate text-[11px]">{enquiry.enquirySource.name}</span>
             </div>
           )}
         </div>
