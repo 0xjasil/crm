@@ -10,6 +10,8 @@ CREATE TYPE "EnquiryStatus" AS ENUM (
   'INVALID'
 );
 
+ALTER TABLE "enquiry" ALTER COLUMN "status" DROP DEFAULT;
+
 ALTER TABLE "enquiry"
   ALTER COLUMN "status" TYPE "EnquiryStatus"
   USING (
@@ -18,5 +20,7 @@ ALTER TABLE "enquiry"
       ELSE "status"::text
     END
   )::"EnquiryStatus";
+
+ALTER TABLE "enquiry" ALTER COLUMN "status" SET DEFAULT 'NEW'::"EnquiryStatus";
 
 DROP TYPE "EnquiryStatus_old";
