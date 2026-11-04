@@ -4,7 +4,7 @@ import type { EnquiryActivity } from './enquiry-activity.js';
 export enum EnquiryStatus {
   NEW = 'NEW',
   CONTACTED = 'CONTACTED',
-  INTERESTED = 'INTERESTED',
+  CONFIRMED = 'CONFIRMED',
   NOT_INTERESTED = 'NOT_INTERESTED',
   FOLLOW_UP = 'FOLLOW_UP',
   ENROLLED = 'ENROLLED',

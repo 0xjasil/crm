@@ -106,7 +106,7 @@ export default async function Dashboard() {
     { title: 'Overdue Follow-ups', value: followUpStats.overdueCount, indicatorColor: 'rose' as const, description: 'Past scheduled interaction window requiring urgent attention.', href: '/follow-ups?filter=overdue' },
     { title: "Today's Follow-ups", value: followUpStats.todayCount, indicatorColor: 'amber' as const, description: 'Scheduled calls and customer follow-ups queued for today.', href: '/follow-ups?filter=today' },
     { title: 'Follow-ups Due Today', value: followUpStats.todayCount, indicatorColor: 'blue' as const, description: 'Pending follow-ups scheduled for today.', href: '/follow-ups?filter=today' },
-    { title: 'Interested Leads', value: followUpStats.interestedLeadsCount, indicatorColor: 'emerald' as const, description: 'High-intent prospects expressing strong interest in services.', href: '/enquiries?status=INTERESTED' },
+    { title: 'Confirmed Leads', value: followUpStats.interestedLeadsCount, indicatorColor: 'emerald' as const, description: 'Prospects confirmed as interested in services.', href: '/enquiries?status=CONFIRMED' },
   ];
 
   const activityItems = [

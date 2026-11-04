@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 export type CrmStatus =
   | 'NEW'
   | 'CONTACTED'
-  | 'INTERESTED'
+  | 'CONFIRMED'
   | 'NOT_INTERESTED'
   | 'FOLLOW_UP'
   | 'ENROLLED'
@@ -43,8 +43,8 @@ const statusConfig: Record<
     label: 'Contacted',
     className: 'bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/50 dark:text-indigo-400 dark:border-indigo-900/60',
   },
-  INTERESTED: {
-    label: 'Interested',
+  CONFIRMED: {
+    label: 'Confirmed',
     className: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900/60',
   },
   NOT_INTERESTED: {

@@ -144,7 +144,7 @@ export function createReportActionsService(prisma: PrismaClient, currentUser: Wo
                 telecallerName: telecaller.name || 'Unknown',
                 newEnquiries: statusCounts['NEW'] || 0,
                 contactedEnquiries: statusCounts['CONTACTED'] || 0,
-                interestedEnquiries: statusCounts['INTERESTED'] || 0,
+                interestedEnquiries: statusCounts['CONFIRMED'] || 0,
                 enrolledEnquiries: statusCounts['ENROLLED'] || 0,
                 droppedEnquiries: statusCounts['DROPPED'] || 0,
                 statusDistribution,
@@ -205,7 +205,7 @@ export function createReportActionsService(prisma: PrismaClient, currentUser: Wo
                 case 'CONTACTED':
                     acc[telecallerId].contactedEnquiries += 1;
                     break;
-                case 'INTERESTED':
+                case 'CONFIRMED':
                     acc[telecallerId].interestedEnquiries += 1;
                     break;
                 case 'ENROLLED':
@@ -1373,7 +1373,7 @@ export function createReportActionsService(prisma: PrismaClient, currentUser: Wo
         const colors: Record<string, string> = {
             NEW: '#3B82F6',
             CONTACTED: '#F59E0B',
-            INTERESTED: '#10B981',
+            CONFIRMED: '#10B981',
             NOT_INTERESTED: '#6B7280',
             FOLLOW_UP: '#8B5CF6',
             ENROLLED: '#059669',

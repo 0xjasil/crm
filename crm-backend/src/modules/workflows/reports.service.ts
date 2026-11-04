@@ -109,7 +109,7 @@ export function createReportsService(prisma: PrismaClient, _currentUser: Workflo
             const STATUS_COLORS: Record<string, string> = {
                 NEW: '#3b82f6',
                 CONTACTED: '#8b5cf6',
-                INTERESTED: '#10b981',
+                CONFIRMED: '#10b981',
                 NOT_INTERESTED: '#ef4444',
                 FOLLOW_UP: '#f59e0b',
                 ENROLLED: '#06b6d4',

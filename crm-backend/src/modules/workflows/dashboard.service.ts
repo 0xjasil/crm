@@ -42,7 +42,7 @@ export function createDashboardService(prisma: PrismaClient, _currentUser: Workf
               SELECT
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1) as "totalEnquiries",
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1 AND "createdAt" >= $2) as "newEnquiries",
-                (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1 AND "status" = 'INTERESTED') as "interestedLeads",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1 AND "status" = 'CONFIRMED') as "interestedLeads",
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1 AND "status" = 'ENROLLED' AND "updatedAt" >= $2) as "enrolledEnquiries",
                 (SELECT COUNT(*)::int FROM "call_log" WHERE "enquiryId" IN (SELECT id FROM "enquiry" WHERE "assignedToUserId" = $1)) as "totalCalls",
                 (SELECT COUNT(*)::int FROM "call_log" WHERE "createdAt" >= $2 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "assignedToUserId" = $1)) as "recentCallLogs",
@@ -55,7 +55,7 @@ export function createDashboardService(prisma: PrismaClient, _currentUser: Workf
               SELECT
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1) as "totalEnquiries",
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1 AND "createdAt" >= $2) as "newEnquiries",
-                (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1 AND "status" = 'INTERESTED') as "interestedLeads",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1 AND "status" = 'CONFIRMED') as "interestedLeads",
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1 AND "status" = 'ENROLLED' AND "updatedAt" >= $2) as "enrolledEnquiries",
                 (SELECT COUNT(*)::int FROM "call_log" WHERE "enquiryId" IN (SELECT id FROM "enquiry" WHERE "branchId" = $1)) as "totalCalls",
                 (SELECT COUNT(*)::int FROM "call_log" WHERE "createdAt" >= $2 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "branchId" = $1)) as "recentCallLogs",
@@ -68,7 +68,7 @@ export function createDashboardService(prisma: PrismaClient, _currentUser: Workf
               SELECT
                 (SELECT COUNT(*)::int FROM "enquiry") as "totalEnquiries",
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "createdAt" >= $1) as "newEnquiries",
-                (SELECT COUNT(*)::int FROM "enquiry" WHERE "status" = 'INTERESTED') as "interestedLeads",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "status" = 'CONFIRMED') as "interestedLeads",
                 (SELECT COUNT(*)::int FROM "enquiry" WHERE "status" = 'ENROLLED' AND "updatedAt" >= $1) as "enrolledEnquiries",
                 (SELECT COUNT(*)::int FROM "call_log") as "totalCalls",
                 (SELECT COUNT(*)::int FROM "call_log" WHERE "createdAt" >= $1) as "recentCallLogs",

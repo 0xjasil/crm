@@ -45,6 +45,7 @@ import {
 } from "@/server/actions/enquiry-action";
 import { createEnquiry, updateEnquiry } from "@/lib/api/enquiry-api";
 import { EnquiryStatus, Enquiry } from "@/types/enquiry";
+import { ENQUIRY_STATUS_OPTIONS } from "@/constants/enquiry";
 import {
   Branch,
   Course,
@@ -509,9 +510,9 @@ export function EnquiryFormDialog({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {Object.values(EnquiryStatus).map((status) => (
-                                <SelectItem key={status} value={status}>
-                                  {status.replace("_", " ")}
+                              {ENQUIRY_STATUS_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>

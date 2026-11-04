@@ -3,10 +3,9 @@ import { EnquiryStatus, FollowUpStatus } from '@/types/enquiry';
 export const ENQUIRY_STATUS_OPTIONS = [
   { value: EnquiryStatus.NEW, label: 'New', color: 'blue' },
   { value: EnquiryStatus.CONTACTED, label: 'Contacted', color: 'yellow' },
-  { value: EnquiryStatus.INTERESTED, label: 'Interested', color: 'green' },
+  { value: EnquiryStatus.CONFIRMED, label: 'Confirmed', color: 'green' },
   { value: EnquiryStatus.NOT_INTERESTED, label: 'Not Interested', color: 'red' },
   { value: EnquiryStatus.FOLLOW_UP, label: 'Follow Up', color: 'orange' },
-  { value: EnquiryStatus.ENROLLED, label: 'Enrolled', color: 'emerald' },
   { value: EnquiryStatus.DROPPED, label: 'Dropped', color: 'gray' },
   { value: EnquiryStatus.INVALID, label: 'Invalid', color: 'red' },
 ] as const;

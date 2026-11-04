@@ -103,7 +103,9 @@ export function StatusUpdateDialog({
 
   // Status options - exclude current status
   const getStatusOptions = () => {
-    return Object.values(EnquiryStatus).filter(status => status !== currentStatus);
+    return Object.values(EnquiryStatus).filter(
+      (status) => status !== currentStatus && status !== EnquiryStatus.ENROLLED
+    );
   };
 
   // Status display names
@@ -113,8 +115,8 @@ export function StatusUpdateDialog({
         return 'New';
       case EnquiryStatus.CONTACTED:
         return 'Contacted';
-      case EnquiryStatus.INTERESTED:
-        return 'Interested';
+      case EnquiryStatus.CONFIRMED:
+        return 'Confirmed';
       case EnquiryStatus.NOT_INTERESTED:
         return 'Not Interested';
       case EnquiryStatus.FOLLOW_UP:
