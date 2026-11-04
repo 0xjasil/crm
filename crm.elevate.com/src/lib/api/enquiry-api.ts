@@ -32,16 +32,38 @@ type EnquiryMutationResponse = {
   error?: { message?: string };
 };
 
+function cleanPayload<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed !== '') {
+        cleaned[key] = trimmed;
+      }
+    } else if (value !== null && value !== undefined) {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
+
 export async function createEnquiry(input: CreateEnquiryInput) {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');
 
   const { enquirySourceId, requiredServiceId, ...fields } = input;
+  const rawBody = {
+    ...fields,
+    sourceId: enquirySourceId || undefined,
+    serviceId: requiredServiceId || undefined,
+  };
+  const body = cleanPayload(rawBody);
+
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
   const response = await authenticatedFetch(`${apiUrl}/enquiries`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ ...fields, sourceId: enquirySourceId || undefined, serviceId: requiredServiceId || undefined }),
+    body: JSON.stringify(body),
   });
   const result: EnquiryMutationResponse = await response.json();
   if (!response.ok || !result.success) {
@@ -55,17 +77,29 @@ export async function updateEnquiry(input: UpdateEnquiryInput) {
   if (!token) throw new Error('Your session has expired. Sign in again to continue.');
 
   const { id, enquirySourceId, requiredServiceId, preferredCourseId, ...fields } = input;
+  const rawBody: Record<string, any> = {
+    ...fields,
+    sourceId: enquirySourceId !== undefined ? (enquirySourceId ? enquirySourceId.trim() : null) : undefined,
+    source: enquirySourceId !== undefined ? (enquirySourceId ? null : null) : undefined,
+    serviceId: requiredServiceId !== undefined ? (requiredServiceId ? requiredServiceId.trim() : null) : undefined,
+    preferredCourseId: preferredCourseId !== undefined ? (preferredCourseId ? preferredCourseId.trim() : null) : undefined,
+  };
+
+  const body: Record<string, any> = {};
+  for (const [k, v] of Object.entries(rawBody)) {
+    if (typeof v === 'string') {
+      const trimmed = v.trim();
+      body[k] = trimmed === '' ? null : trimmed;
+    } else {
+      body[k] = v;
+    }
+  }
+
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
   const response = await authenticatedFetch(`${apiUrl}/enquiries/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      ...fields,
-      sourceId: enquirySourceId === undefined ? undefined : enquirySourceId || null,
-      source: enquirySourceId === undefined ? undefined : null,
-      serviceId: requiredServiceId === undefined ? undefined : requiredServiceId || null,
-      preferredCourseId: preferredCourseId === undefined ? undefined : preferredCourseId || null,
-    }),
+    body: JSON.stringify(body),
   });
   const result: EnquiryMutationResponse = await response.json();
   if (!response.ok || !result.success) {
