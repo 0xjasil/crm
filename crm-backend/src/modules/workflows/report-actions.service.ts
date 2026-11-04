@@ -145,7 +145,7 @@ export function createReportActionsService(prisma: PrismaClient, currentUser: Wo
                 newEnquiries: statusCounts['NEW'] || 0,
                 contactedEnquiries: statusCounts['CONTACTED'] || 0,
                 interestedEnquiries: statusCounts['CONFIRMED'] || 0,
-                enrolledEnquiries: statusCounts['ENROLLED'] || 0,
+                enrolledEnquiries: 0,
                 droppedEnquiries: statusCounts['DROPPED'] || 0,
                 statusDistribution,
             };
@@ -207,9 +207,6 @@ export function createReportActionsService(prisma: PrismaClient, currentUser: Wo
                     break;
                 case 'CONFIRMED':
                     acc[telecallerId].interestedEnquiries += 1;
-                    break;
-                case 'ENROLLED':
-                    acc[telecallerId].enrolledEnquiries += 1;
                     break;
                 case 'DROPPED':
                     acc[telecallerId].droppedEnquiries += 1;
@@ -1376,7 +1373,6 @@ export function createReportActionsService(prisma: PrismaClient, currentUser: Wo
             CONFIRMED: '#10B981',
             NOT_INTERESTED: '#6B7280',
             FOLLOW_UP: '#8B5CF6',
-            ENROLLED: '#059669',
             DROPPED: '#DC2626',
             INVALID: '#9CA3AF',
         };

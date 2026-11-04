@@ -31,18 +31,15 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Edit2, ArrowUpCircle } from 'lucide-react';
 
-import { updateEnquiryStatusWithActivity, updateEnquiryStatusDirectToEnrolled } from '@/server/actions/enquiry-status-actions';
+import { updateEnquiryStatusWithActivity } from '@/server/actions/enquiry-status-actions';
 import { EnquiryStatus } from '@/types/enquiry';
 
-// Form schema - fixed to make directEnrollment required
 const statusUpdateSchema = z.object({
   newStatus: z.nativeEnum(EnquiryStatus),
   statusRemarks: z.string().optional(),
-  directEnrollment: z.boolean(),
 });
 
 type StatusUpdateFormData = z.infer<typeof statusUpdateSchema>;
@@ -80,13 +77,7 @@ export function StatusUpdateDialog({
     isExecuting: isUpdating,
   } = useAction(updateEnquiryStatusWithActivity);
 
-  const {
-    execute: directEnrollmentAction,
-    result: directResult,
-    isExecuting: isDirectEnrolling,
-  } = useAction(updateEnquiryStatusDirectToEnrolled);
-
-  const isExecuting = isUpdating || isDirectEnrolling;
+  const isExecuting = isUpdating;
 
   // Form
   const form = useForm<StatusUpdateFormData>({
@@ -94,18 +85,12 @@ export function StatusUpdateDialog({
     defaultValues: {
       newStatus: undefined,
       statusRemarks: '',
-      directEnrollment: false,
     },
   });
 
-  const watchedStatus = form.watch('newStatus');
-  const watchedDirectEnrollment = form.watch('directEnrollment');
-
   // Status options - exclude current status
   const getStatusOptions = () => {
-    return Object.values(EnquiryStatus).filter(
-      (status) => status !== currentStatus && status !== EnquiryStatus.ENROLLED
-    );
+    return Object.values(EnquiryStatus).filter((status) => status !== currentStatus);
   };
 
   // Status display names
@@ -121,8 +106,6 @@ export function StatusUpdateDialog({
         return 'Not Interested';
       case EnquiryStatus.FOLLOW_UP:
         return 'Follow Up';
-      case EnquiryStatus.ENROLLED:
-        return 'Enrolled';
       case EnquiryStatus.DROPPED:
         return 'Dropped';
       case EnquiryStatus.INVALID:
@@ -136,7 +119,7 @@ export function StatusUpdateDialog({
   useEffect(() => {
     if (!isProcessingAction) return;
 
-    const result = updateResult || directResult;
+    const result = updateResult;
     if (result?.data?.success) {
       const message = result.data.message || 'Status updated successfully';
       toast.success(message);
@@ -154,26 +137,17 @@ export function StatusUpdateDialog({
       toast.error(`Validation error: ${errorMessages}`);
       setIsProcessingAction(false);
     }
-  }, [updateResult, directResult, form, setOpen, onSuccess, isProcessingAction]);
+  }, [updateResult, form, setOpen, onSuccess, isProcessingAction]);
 
   const onSubmit = async (data: StatusUpdateFormData) => {
     try {
       setIsProcessingAction(true);
 
-      if (data.directEnrollment && data.newStatus === EnquiryStatus.ENROLLED) {
-        // Use direct enrollment action
-        directEnrollmentAction({
-          id: enquiryId,
-          statusRemarks: data.statusRemarks,
-        });
-      } else {
-        // Use regular status update action
-        updateStatusAction({
-          id: enquiryId,
-          newStatus: data.newStatus,
-          statusRemarks: data.statusRemarks,
-        });
-      }
+      updateStatusAction({
+        id: enquiryId,
+        newStatus: data.newStatus,
+        statusRemarks: data.statusRemarks,
+      });
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Failed to update status');
@@ -188,7 +162,6 @@ export function StatusUpdateDialog({
         form.reset({
           newStatus: undefined,
           statusRemarks: '',
-          directEnrollment: false,
         });
       }
     }
@@ -242,31 +215,6 @@ export function StatusUpdateDialog({
                 )}
               />
 
-              {watchedStatus === EnquiryStatus.ENROLLED && (
-                <FormField
-                  control={form.control}
-                  name="directEnrollment"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Direct Enrollment
-                        </FormLabel>
-                        <p className="text-sm text-muted-foreground">
-                          Check this if the candidate enrolled directly without going through the admission form process.
-                        </p>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              )}
-
               <FormField
                 control={form.control}
                 name="statusRemarks"
@@ -278,11 +226,7 @@ export function StatusUpdateDialog({
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder={
-                          watchedDirectEnrollment
-                            ? "Add any notes about the direct enrollment..."
-                            : "Add any remarks about this status change..."
-                        }
+                        placeholder="Add any remarks about this status change..."
                         className="min-h-[80px]"
                       />
                     </FormControl>
@@ -305,12 +249,12 @@ export function StatusUpdateDialog({
                 {isExecuting ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-white" />
-                    {watchedDirectEnrollment ? 'Processing Direct Enrollment...' : 'Updating Status...'}
+                    Updating Status...
                   </>
                 ) : (
                   <>
                     <Edit2 className="mr-2 h-4 w-4" />
-                    {watchedDirectEnrollment ? 'Complete Direct Enrollment' : 'Update Status'}
+                    Update Status
                   </>
                 )}
               </Button>

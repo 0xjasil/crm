@@ -112,7 +112,6 @@ export function createReportsService(prisma: PrismaClient, _currentUser: Workflo
                 CONFIRMED: '#10b981',
                 NOT_INTERESTED: '#ef4444',
                 FOLLOW_UP: '#f59e0b',
-                ENROLLED: '#06b6d4',
                 DROPPED: '#6b7280',
                 INVALID: '#9ca3af',
             };

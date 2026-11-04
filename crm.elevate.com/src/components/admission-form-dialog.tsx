@@ -381,10 +381,10 @@ export function AdmissionFormDialog({
             try {
               const enquiryUpdateResult = await updateEnquiryStatus(
                 enquiryData.id,
-                EnquiryStatus.ENROLLED
+                EnquiryStatus.CONFIRMED
               );
               if (enquiryUpdateResult.success) {
-                toast.success("Enquiry status updated to Enrolled / Converted");
+                toast.success("Enquiry status updated to Confirmed");
               }
             } catch (error) {
               console.error("Error updating enquiry status:", error);

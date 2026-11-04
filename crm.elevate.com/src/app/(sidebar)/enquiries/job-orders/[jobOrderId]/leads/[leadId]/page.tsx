@@ -642,22 +642,16 @@ export default function JobLeadDetailPage({ params }: { params: Promise<{ jobOrd
                             Quick Actions
                         </h3>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            {enquiry.status !== EnquiryStatus.ENROLLED ? (
-                                <Link href={`/admissions?enquiryId=${enquiry.id}`} className="relative z-10 w-full">
-                                    <Button
-                                        className="relative z-10 w-full cursor-pointer"
-                                        onClick={() => {
-                                            toast.info('Taking you to the pre-installation site survey form...');
-                                        }}
-                                    >
-                                        Site Survey Form
-                                    </Button>
-                                </Link>
-                            ) : (
-                                <Button className="relative z-10 w-full cursor-not-allowed" disabled>
-                                    Survey Completed
+                            <Link href={`/admissions?enquiryId=${enquiry.id}`} className="relative z-10 w-full">
+                                <Button
+                                    className="relative z-10 w-full cursor-pointer"
+                                    onClick={() => {
+                                        toast.info('Taking you to the pre-installation site survey form...');
+                                    }}
+                                >
+                                    Site Survey Form
                                 </Button>
-                            )}
+                            </Link>
 
                             <Dialog open={isCallLogDialogOpen} onOpenChange={setIsCallLogDialogOpen}>
                                 <DialogTrigger asChild>

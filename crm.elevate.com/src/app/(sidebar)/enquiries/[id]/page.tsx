@@ -439,11 +439,6 @@ export default function EnquiryDetailPage() {
                 </div>
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 sm:text-base">
                   Enquiry Details • Created {formatDate(enquiry.createdAt)}
-                  {enquiry.status === 'ENROLLED' && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                      ✓ Admission Completed
-                    </span>
-                  )}
                 </p>
               </div>
             </div>
@@ -575,28 +570,16 @@ export default function EnquiryDetailPage() {
               Quick Actions
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {enquiry.status !== EnquiryStatus.ENROLLED ? (
-                <Link href={`/admissions?enquiryId=${enquiry.id}`} className="relative z-10 w-full">
-                  <Button
-                    className="relative z-10 w-full cursor-pointer"
-                    onClick={() => {
-                      if (enquiry.status === EnquiryStatus.ENROLLED) {
-                        toast.info(
-                          'A site survey has already been completed for this enquiry. View details in Surveys & Projects.'
-                        );
-                        return;
-                      }
-                      toast.info('Taking you to the pre-installation site survey form...');
-                    }}
-                  >
-                    Site Survey Form
-                  </Button>
-                </Link>
-              ) : (
-                <Button className="relative z-10 w-full cursor-not-allowed" disabled>
-                  Survey Completed
+              <Link href={`/admissions?enquiryId=${enquiry.id}`} className="relative z-10 w-full">
+                <Button
+                  className="relative z-10 w-full cursor-pointer"
+                  onClick={() => {
+                    toast.info('Taking you to the pre-installation site survey form...');
+                  }}
+                >
+                  Site Survey Form
                 </Button>
-              )}
+              </Link>
 
               <Dialog open={isCallLogDialogOpen} onOpenChange={setIsCallLogDialogOpen}>
                 <DialogTrigger asChild>

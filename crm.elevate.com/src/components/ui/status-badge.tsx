@@ -7,7 +7,6 @@ export type CrmStatus =
   | 'CONFIRMED'
   | 'NOT_INTERESTED'
   | 'FOLLOW_UP'
-  | 'ENROLLED'
   | 'DROPPED'
   | 'INVALID'
   | 'PENDING'
@@ -55,10 +54,6 @@ const statusConfig: Record<
     label: 'Follow Up',
     className: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900/60',
   },
-  ENROLLED: {
-    label: 'Enrolled',
-    className: 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800',
-  },
   DROPPED: {
     label: 'Dropped',
     className: 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-900/60',
@@ -72,10 +67,6 @@ const statusConfig: Record<
   PENDING: {
     label: 'Pending',
     className: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900/60',
-  },
-  CONFIRMED: {
-    label: 'Confirmed',
-    className: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900/60',
   },
   COMPLETED: {
     label: 'Completed',

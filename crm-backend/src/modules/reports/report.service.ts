@@ -39,7 +39,7 @@ export class ReportService {
           this.prisma.enquiry.count({
             where: {
               assignedToUserId: tc.id,
-              status: EnquiryStatus.ENROLLED,
+              status: EnquiryStatus.CONFIRMED,
               ...(hasDateFilter ? { updatedAt: dateFilter } : {}),
             },
           }),
@@ -103,7 +103,7 @@ export class ReportService {
           this.prisma.enquiry.count({
             where: {
               branchId: b.id,
-              status: EnquiryStatus.ENROLLED,
+              status: EnquiryStatus.CONFIRMED,
               ...(hasDateFilter ? { updatedAt: dateFilter } : {}),
             },
           }),

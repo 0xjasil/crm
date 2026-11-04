@@ -233,11 +233,11 @@ export function createEnquiryService(prisma: PrismaClient, currentUser: Workflow
             }
             // Use transaction to update enquiry and create activity
             const result = await prisma.$transaction(async (tx) => {
-                // Update enquiry status to ENROLLED
+                // Direct enrolment confirms the enquiry.
                 const updatedEnquiry = await tx.enquiry.update({
                     where: { id },
                     data: {
-                        status: EnquiryStatus.ENROLLED,
+                        status: EnquiryStatus.CONFIRMED,
                         lastContactDate: new Date(),
                     },
                     include: {

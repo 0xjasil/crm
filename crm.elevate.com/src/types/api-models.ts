@@ -6,7 +6,6 @@ export const EnquiryStatus = {
   CONFIRMED: 'CONFIRMED',
   NOT_INTERESTED: 'NOT_INTERESTED',
   FOLLOW_UP: 'FOLLOW_UP',
-  ENROLLED: 'ENROLLED',
   DROPPED: 'DROPPED',
   INVALID: 'INVALID',
 } as const;
