@@ -98,7 +98,7 @@ export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
 
   if (isLoading) {
     return (
-      <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -114,7 +114,7 @@ export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
 
   if (!expense) {
     return (
-      <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -134,7 +134,7 @@ export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
   }
 
   return (
-    <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+    <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

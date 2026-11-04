@@ -196,7 +196,7 @@ export default function InvoiceDetailPage() {
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="max-width-1150 @container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="max-width-1150 @container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
         {/* Header Skeleton */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -251,7 +251,7 @@ export default function InvoiceDetailPage() {
 
   if (!invoice) {
     return (
-      <div className="max-width-1150 @container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="max-width-1150 @container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
         <div className="flex items-center justify-center py-24">
           <div className="text-center space-y-3">
             <Receipt className="mx-auto h-12 w-12 text-muted-foreground" />

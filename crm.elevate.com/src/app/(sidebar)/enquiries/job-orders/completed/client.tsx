@@ -206,7 +206,7 @@ export default function CompletedJobOrdersClient({
   const isManager = userRole === 'manager' || userRole === 'executive';
   
   return (
-    <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+    <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Completed Jobs List</h1>

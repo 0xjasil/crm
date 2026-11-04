@@ -341,7 +341,7 @@ export default function JobOrderDetailPage({ params }: { params: Promise<{ jobOr
   const isComplete   = pendingCount === 0 && totalLeads > 0;
 
   return (
-    <div className="flex flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-4 md:p-6 max-w-[1150px] w-full mx-auto">
+    <div className="flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-4 sm:p-4 md:p-6 max-w-[1150px] w-full mx-auto">
 
       {/* ── Sticky header ──────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 -mx-3 -mt-3 sm:-mx-4 sm:-mt-4 md:-mx-6 md:-mt-6 bg-background border-b border-border/80 px-3 py-2.5 sm:px-4 flex items-center gap-2.5">

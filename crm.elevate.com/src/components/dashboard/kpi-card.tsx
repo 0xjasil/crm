@@ -119,7 +119,7 @@ export function KpiCard({
   const isInteractive = Boolean(href || onClick);
   const valueLength = String(value).length;
   const cardClassName = cn(
-    "group relative flex h-full min-h-[160px] w-full min-w-0 flex-col justify-between gap-5 rounded-xl border border-border/80 bg-card p-5 text-left text-card-foreground shadow-xs sm:p-6",
+    "group relative flex h-full min-h-0 sm:min-h-[140px] w-full min-w-0 flex-col justify-between gap-3 sm:gap-5 rounded-xl border border-border/80 bg-card p-3.5 sm:p-5 lg:p-6 text-left text-card-foreground shadow-xs",
     isInteractive &&
       "cursor-pointer transition-[transform,box-shadow,border-color] duration-200 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none",
     className,
@@ -133,10 +133,10 @@ export function KpiCard({
             className={cn(
               "block font-semibold leading-none tracking-tight tabular-nums [overflow-wrap:anywhere]",
               valueLength > 12
-                ? "text-xl sm:text-2xl"
+                ? "text-lg sm:text-xl md:text-2xl"
                 : valueLength > 8
-                  ? "text-2xl sm:text-3xl"
-                  : "text-3xl sm:text-4xl",
+                  ? "text-xl sm:text-2xl md:text-3xl"
+                  : "text-2xl sm:text-3xl md:text-4xl",
             )}
           >
             {value}
@@ -168,17 +168,17 @@ export function KpiCard({
           <span
             aria-hidden="true"
             className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-lg text-white transition-transform group-hover:scale-105 sm:size-8",
+              "flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg text-white transition-transform group-hover:scale-105",
               colorClass,
             )}
           >
-            <IconArrowUpRight className="size-4" />
+            <IconArrowUpRight className="size-3.5 sm:size-4" />
           </span>
         )}
       </span>
 
       <span className="block w-full min-w-0">
-        <span className="flex items-start gap-2 text-sm font-semibold leading-snug sm:text-base">
+        <span className="flex items-start gap-2 text-xs sm:text-sm font-semibold leading-snug">
           {icon && (
             <span aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground [&>svg]:size-4">
               {icon}
@@ -187,7 +187,7 @@ export function KpiCard({
           <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
         </span>
         {description && (
-          <span className="mt-1.5 block text-xs font-normal leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+          <span className="mt-1 hidden sm:block text-xs font-normal leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
             {description}
           </span>
         )}

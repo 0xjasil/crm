@@ -439,7 +439,7 @@ function ServicePage() {
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
         {/* Header Skeleton */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -482,7 +482,7 @@ function ServicePage() {
   // Error state
   if (error || !serviceBillDetails) {
     return (
-      <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
         <div className="flex items-center justify-center py-24">
           <div className="text-center">
             <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -527,7 +527,7 @@ function ServicePage() {
   };
 
   return (
-    <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+    <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

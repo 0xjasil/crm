@@ -106,7 +106,7 @@ export default async function AdmissionDetailPage({
 
   if (!admission) {
     return (
-      <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
         <div className="flex items-center justify-center py-24">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Installation Not Found</h3>
@@ -127,7 +127,7 @@ export default async function AdmissionDetailPage({
   }
 
   return (
-    <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
+    <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

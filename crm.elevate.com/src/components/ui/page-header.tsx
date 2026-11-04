@@ -16,7 +16,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        'w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6',
+        'w-full mx-auto px-5 py-2 sm:p-6 lg:p-8 space-y-2.5 sm:space-y-6',
         maxWidth === 'default' && 'max-w-[1150px]',
         maxWidth === 'narrow' && 'max-w-5xl',
         maxWidth === 'full' && 'max-w-full',
@@ -48,7 +48,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-2',
+        'flex flex-col gap-2.5 sm:gap-4 sm:flex-row sm:items-center sm:justify-between pb-1 sm:pb-2',
         className
       )}
       {...props}

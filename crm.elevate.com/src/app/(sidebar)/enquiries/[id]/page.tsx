@@ -409,7 +409,7 @@ export default function EnquiryDetailPage() {
       </div>
 
       {/* ── Page Body ───────────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-4 md:p-6 max-w-[1150px] w-full mx-auto">
+      <div className="flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-4 sm:p-4 md:p-6 max-w-[1150px] w-full mx-auto">
 
         {/* ── Stat Pills ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-4 gap-2">

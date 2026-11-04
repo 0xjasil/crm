@@ -154,7 +154,7 @@ export default function ProposalDetailPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 md:p-8 max-w-6xl mx-auto w-full">
+    <div className="flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-8 max-w-6xl mx-auto w-full">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
         <div className="flex items-center gap-3">

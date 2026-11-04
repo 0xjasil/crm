@@ -455,7 +455,7 @@ export default function JobLeadDetailPage({ params }: { params: Promise<{ jobOrd
     const enquiry = jobLead.lead; // Convenience alias
 
     return (
-        <div className="@container/main flex flex-1 flex-col gap-4 p-3 sm:gap-6 sm:p-4 md:p-6 mb-20 md:mb-0">
+        <div className="@container/main flex flex-1 flex-col gap-2.5 px-5 py-1.5 sm:gap-6 sm:p-4 md:p-6 mb-20 md:mb-0">
             {/* Enhanced Header - Merged with Job Context */}
             <div className="relative overflow-hidden rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
                 <div className="relative z-10 p-4 sm:p-6">
