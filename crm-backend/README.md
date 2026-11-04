@@ -15,6 +15,7 @@ Standalone Modular Monolith CRM Backend built with Node.js, Fastify, TypeScript,
 
 ---
 
+
 ## 🛠️ Setup & Running
 
 ### 1. Configure Environment
