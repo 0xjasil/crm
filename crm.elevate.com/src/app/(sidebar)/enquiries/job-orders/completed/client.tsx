@@ -20,25 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-
-import { 
-  Search,
-  Filter,
-  Eye,
-  Trash2,
-  MoreHorizontal,
-  Briefcase,
-  UserPlus
-} from 'lucide-react';
+import { Search, Eye, Trash2 } from 'lucide-react';
+import { PageContainer, PageHeader } from '@/components/ui/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,10 +33,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getJobOrders, deleteJobOrder, reassignJobOrder } from '@/server/actions/job-order';
+import { getJobOrders, deleteJobOrder } from '@/server/actions/job-order';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Progress } from '@/components/ui/progress';
 import { JobOrderMobileCard } from '@/components/enquiry/job-order-mobile-card';
 
@@ -96,12 +78,9 @@ interface CompletedJobOrdersClientProps {
 
 export default function CompletedJobOrdersClient({ 
   userRole, 
-  userId, 
-  branches = [],
-  availableManagers = []
+  branches = []
 }: CompletedJobOrdersClientProps) {
   const router = useRouter();
-  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,11 +92,6 @@ export default function CompletedJobOrdersClient({
     pages: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  // States for Re-assign Dialog
-  const [isReassignOpen, setIsReassignOpen] = useState(false);
-  const [jobToReassign, setJobToReassign] = useState<string | null>(null);
-  const [newManagerId, setNewManagerId] = useState<string>('');
 
   // Fetch job orders
   const fetchJobOrders = useCallback(async () => {
@@ -155,7 +129,6 @@ export default function CompletedJobOrdersClient({
   };
 
   const handleDeleteJobOrder = async (jobOrderId: string) => {
-    if (!confirm('Are you sure you want to delete this job order?')) return;
     
     try {
       const result = await deleteJobOrder(jobOrderId);
@@ -170,57 +143,24 @@ export default function CompletedJobOrdersClient({
     }
   };
 
-  const openReassignDialog = (jobOrderId: string) => {
-    setJobToReassign(jobOrderId);
-    setNewManagerId('');
-    setIsReassignOpen(true);
-  }
-
-  const handleReassign = async () => {
-    if (!jobToReassign || !newManagerId) {
-       toast.error('Please select a manager');
-       return;
-    }
-
-    try {
-       const result = await reassignJobOrder(jobToReassign, newManagerId);
-       if (result.success) {
-           toast.success('Job order re-assigned successfully');
-           setIsReassignOpen(false);
-           fetchJobOrders();
-       } else {
-           toast.error(result.message);
-       }
-    } catch {
-       toast.error('Failed to re-assign job order');
-    }
-  };
-
-
   const formatDate = (date: Date | string) => {
     return format(new Date(date), 'MMM dd, yyyy');
   };
 
   // Permission Checks
   const isAdmin = userRole === 'admin';
-  const isManager = userRole === 'manager' || userRole === 'executive';
   
   return (
-    <div className="@container/main flex flex-1 flex-col gap-6 p-4 md:p-6">
-      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Completed Jobs List</h1>
-          <p className="text-gray-600">View and Manage Completed Jobs</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
+    <PageContainer className="min-w-0">
+      <PageHeader title="Completed Jobs List" description="View and manage completed jobs" />
+      <div className="@container/main min-w-0 space-y-4 sm:space-y-6">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           {/* Branch Filter (Admin Only) */}
           {isAdmin && (
-             <div className="flex flex-col gap-2">
-                 <span className="text-sm font-medium">Branch</span>
-                 <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                   <SelectTrigger>
+             <div className="flex min-w-0 flex-col gap-2">
+                 <label htmlFor="completed-branch" className="text-sm font-medium">Branch</label>
+                 <Select value={selectedBranch} onValueChange={(value) => { setSelectedBranch(value); setCurrentPage(1); }}>
+                   <SelectTrigger id="completed-branch" className="w-full min-w-0">
                      <SelectValue placeholder="All Branch" />
                    </SelectTrigger>
                    <SelectContent>
@@ -233,40 +173,46 @@ export default function CompletedJobOrdersClient({
              </div>
           )}
           {/* Search */}
-          <div className="flex flex-col gap-2 md:col-span-2 lg:col-span-1">
-             <span className="text-sm font-medium">Search</span>
+          <div className={`flex min-w-0 flex-col gap-2 ${isAdmin ? '' : 'sm:col-span-2'}`}>
+             <label htmlFor="completed-search" className="text-sm font-medium">Search</label>
              <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search..."
-                  className="pl-8"
+                  id="completed-search"
+                  placeholder="Search completed jobs..."
+                  className="w-full min-w-0 pl-8"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 />
              </div>
           </div>
       </div>
 
       {/* Job Orders Table */}
-      <Card>
+      <Card className="min-w-0 overflow-hidden py-0">
         <CardContent className="p-0">
-          {filteredJobOrdersTable(isLoading, jobOrders, isMobile, pagination, isAdmin, isManager, handleViewJobOrder, handleDeleteJobOrder, formatDate)}
+          {filteredJobOrdersTable(isLoading, jobOrders, isAdmin, handleViewJobOrder, handleDeleteJobOrder, formatDate)}
         </CardContent>
       </Card>
-    </div>
+      {pagination && pagination.pages > 0 && <nav aria-label="Completed jobs pagination" className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground" aria-live="polite">Page {pagination.page} of {pagination.pages} / {pagination.total} jobs</p>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button variant="outline" disabled={isLoading || currentPage <= 1} onClick={() => setCurrentPage(page => page - 1)}>Previous</Button>
+          <Button variant="outline" disabled={isLoading || currentPage >= pagination.pages} onClick={() => setCurrentPage(page => page + 1)}>Next</Button>
+        </div>
+      </nav>}
+      </div>
+    </PageContainer>
   );
 }
 
 function filteredJobOrdersTable(
     isLoading: boolean,
     jobOrders: JobOrder[],
-    isMobile: boolean,
-    pagination: any,
     isAdmin: boolean,
-    isManager: boolean,
     handleViewJobOrder: (id: string) => void,
     handleDeleteJobOrder: (id: string) => void,
-    formatDate: (d: any) => string
+    formatDate: (d: Date | string) => string
 ) {
 
     if (isLoading) {
@@ -279,64 +225,65 @@ function filteredJobOrdersTable(
   
     return (
         <>
-            {isMobile ? (
-                 <div className="space-y-4 p-4">
-                    {jobOrders.map((job) => (
-                        <JobOrderMobileCard
-                            key={job.id}
-                            jobOrder={job}
-                            onView={handleViewJobOrder}
-                            onDelete={handleDeleteJobOrder}
-                            isAdmin={isAdmin}
-                        />
-                    ))}
-                 </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <Table>
+             {/* Mobile Card View */}
+             <div className="grid min-w-0 grid-cols-1 gap-3 p-3 @[560px]/main:grid-cols-2 @[960px]/main:hidden sm:p-4">
+                {jobOrders.map((job) => (
+                    <JobOrderMobileCard
+                        key={job.id}
+                        jobOrder={job}
+                        onView={handleViewJobOrder}
+                        onDelete={handleDeleteJobOrder}
+                        isAdmin={isAdmin}
+                    />
+                ))}
+             </div>
+
+             {/* Desktop Table View */}
+             <div className="hidden min-w-0 @[960px]/main:block">
+                    <Table className="table-fixed text-xs">
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Job ID</TableHead>
-                                <TableHead>Branch</TableHead>
-                                <TableHead>Job Name</TableHead>
-                                <TableHead>Leads</TableHead>
-                                <TableHead>Counselor</TableHead>
-                                <TableHead>Assigned By</TableHead>
-                                <TableHead>Date Period</TableHead>
-                                <TableHead>Progress</TableHead>
-                                <TableHead>Remarks</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="w-[7%] whitespace-normal px-2">Job ID</TableHead>
+                                <TableHead className="w-[10%] whitespace-normal px-2">Branch</TableHead>
+                                <TableHead className="w-[15%] whitespace-normal px-2">Job Name</TableHead>
+                                <TableHead className="w-[5%] whitespace-normal px-2">Leads</TableHead>
+                                <TableHead className="w-[10%] whitespace-normal px-2">Counselor</TableHead>
+                                <TableHead className="w-[10%] whitespace-normal px-2">Assigned By</TableHead>
+                                <TableHead className="w-[13%] whitespace-normal px-2">Date Period</TableHead>
+                                <TableHead className="w-[10%] whitespace-normal px-2">Progress</TableHead>
+                                <TableHead className="w-[10%] whitespace-normal px-2">Remarks</TableHead>
+                                <TableHead className="w-[10%] px-2 text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {jobOrders.map((job) => (
-                                <TableRow key={job.id}>
+                                <TableRow key={job.id} className="[&>td]:whitespace-normal [&>td]:break-words [&>td]:px-2 [&>td]:align-top">
                                     <TableCell>{job.id.slice(-6)}</TableCell>
                                     <TableCell>{job.branch.name}</TableCell>
-                                    <TableCell className="font-medium">{job.name}</TableCell>
+                                    <TableCell className="font-medium [overflow-wrap:anywhere]">{job.name}</TableCell>
                                     <TableCell>{job._count?.jobLeads || 0}</TableCell>
                                     <TableCell>{job.manager.name}</TableCell>
                                     <TableCell>{job.assigner?.name || '-'}</TableCell>
                                     <TableCell>
-                                        {formatDate(job.startDate)} To {formatDate(job.endDate)}
+                                        <span className="block">{formatDate(job.startDate)}</span><span className="block text-muted-foreground">to {formatDate(job.endDate)}</span>
                                     </TableCell>
                                     <TableCell>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-col gap-1.5">
                                             <Progress value={job.progress} className="w-[60px]" />
                                             <span className="text-xs">{job.progress}%</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>{job.remarks || '-'}</TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleViewJobOrder(job.id)}>
+                                        <div className="flex flex-wrap justify-end gap-1">
+                                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" aria-label={`View ${job.name}`} onClick={() => handleViewJobOrder(job.id)}>
                                                 <Eye className="h-4 w-4 text-blue-500" />
                                             </Button>
                                             
                                             {(isAdmin) && (
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                                                        <Button variant="outline" size="sm" className="h-8 w-8 p-0" aria-label={`Delete ${job.name}`}>
                                                             <Trash2 className="h-4 w-4 text-red-500" />
                                                         </Button>
                                                     </AlertDialogTrigger>
@@ -364,7 +311,6 @@ function filteredJobOrdersTable(
                         </TableBody>
                     </Table>
                 </div>
-            )}
         </>
     );
 }

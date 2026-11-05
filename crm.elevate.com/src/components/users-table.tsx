@@ -1,15 +1,13 @@
 // src/components/users-table.tsx
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconSearch,
   IconDotsVertical,
   IconTrash,
   IconShieldLock,
-  IconCheck,
-  IconSparkles,
 } from '@tabler/icons-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,15 +47,22 @@ import {
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { UsersTableProps, UserWithRole } from '@/types/user';
-import { updateUserBranchAction, updateUserRoleAction, deleteUserAction } from '@/lib/actions/auth';
+import { updateUserBranchAction, updateUserRoleAction, deleteUserAction, getUserDeactivationPreview, reactivateUserAction, permanentlyDeleteUnusedUserAction, type UserDeactivationPreview } from '@/lib/actions/auth';
 import { useAction } from 'next-safe-action/hooks';
 import { SOFTWARE_POSITIONS, ALL_FEATURE_MODULES } from '@/constants/permissions';
 import { getPositionDefinition, getUserEffectivePermissions } from '@/lib/permissions';
 import { PermissionsDialog } from '@/components/users/permissions-dialog';
 
-export function UsersTable({ users, roles, branches }: UsersTableProps) {
+export function UsersTable({ users, branches }: UsersTableProps) {
   const router = useRouter();
+  const previewRequest = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [permanentDeleteMode, setPermanentDeleteMode] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('active');
+  const [preview, setPreview] = useState<UserDeactivationPreview | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const [replacementId, setReplacementId] = useState('');
   const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -109,19 +114,37 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
         toast.error(data.message);
       }
     },
-    onError: () => {
-      toast.error('Failed to delete user. Please try again.');
+    onError: ({ error }) => {
+      toast.error(error.serverError || 'Failed to deactivate user. Please try again.');
     },
     onSettled: () => {
       setIsDeleting(false);
     },
   });
 
+  const { execute: reactivateUser } = useAction(reactivateUserAction, {
+    onSuccess: ({ data }) => {
+      if (data?.success) { toast.success(data.message); setShowDeleteDialog(false); router.refresh(); }
+      else toast.error(data?.message || 'Reactivation failed');
+    },
+    onError: ({ error }) => toast.error(error.serverError || 'Reactivation failed. Please try again.'),
+    onSettled: () => setIsDeleting(false),
+  });
+  const { execute: permanentlyDeleteUser } = useAction(permanentlyDeleteUnusedUserAction, {
+    onSuccess: ({ data }) => {
+      if (data?.success) { toast.success(data.message); setShowDeleteDialog(false); router.refresh(); }
+      else toast.error(data?.message || 'Deletion failed');
+    },
+    onError: ({ error }) => toast.error(error.serverError || 'Unable to delete account. It may have linked records.'),
+    onSettled: () => setIsDeleting(false),
+  });
+  const needsTransfer = !!preview && (preview.jobs.length + preview.leads.length + preview.enquiries.length + preview.surveys.length > 0);
   const filteredUsers = useMemo(() => {
-    if (!searchQuery) return users;
+    const visible = users.filter(user => statusFilter === 'all' || (statusFilter === 'active' ? user.isActive !== false : user.isActive === false));
+    if (!searchQuery) return visible;
 
     const query = searchQuery.toLowerCase();
-    return users.filter(
+    return visible.filter(
       (user) =>
         user.name.toLowerCase().includes(query) ||
         user.email.toLowerCase().includes(query) ||
@@ -132,20 +155,35 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
             ?.name.toLowerCase()
             .includes(query))
     );
-  }, [users, searchQuery, branches]);
+  }, [users, searchQuery, branches, statusFilter]);
 
-  const handleDeleteClick = (user: UserWithRole) => {
+  const handleDeleteClick = async (user: UserWithRole) => {
+    const requestId = ++previewRequest.current;
+    setPermanentDeleteMode(false);
     setUserToDelete(user);
+    setPreview(null);
+    setPreviewError('');
+    setReplacementId('');
+    setLoadingPreview(true);
     setShowDeleteDialog(true);
+    try {
+      const result = await getUserDeactivationPreview(user.id);
+      if (requestId === previewRequest.current) setPreview(result);
+    }
+    catch { if (requestId === previewRequest.current) setPreviewError('Unable to load pending work. Close and reopen this window to try again.'); }
+    finally { if (requestId === previewRequest.current) setLoadingPreview(false); }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!userToDelete) return;
+  const handleDeleteConfirm = () => {
+    if (!userToDelete || !preview) return;
     setIsDeleting(true);
-    deleteUser({ userId: userToDelete.id });
+    if (permanentDeleteMode) permanentlyDeleteUser({ userId: userToDelete.id });
+    else if (userToDelete.isActive === false) reactivateUser({ userId: userToDelete.id });
+    else deleteUser({ userId: userToDelete.id, replacementId: replacementId || undefined, revision: preview.revision });
   };
 
   const handleDeleteCancel = () => {
+    previewRequest.current++;
     setShowDeleteDialog(false);
     setUserToDelete(null);
   };
@@ -181,7 +219,7 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
         <Select
           value={user.role || 'telecaller'}
           onValueChange={(newRole) => handleRoleUpdate(user.id, newRole, user.role || '')}
-          disabled={isUpdating}
+          disabled={isUpdating || user.isActive === false}
         >
           <SelectTrigger className="w-44 h-8 text-xs border border-border/70 shadow-none px-2.5 focus:ring-1 focus:ring-ring bg-background">
             <SelectValue>
@@ -227,7 +265,7 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
         <Select
           value={currentBranchId}
           onValueChange={(newBranchId) => handleBranchUpdate(user.id, newBranchId, currentBranchId)}
-          disabled={isUpdating}
+          disabled={isUpdating || user.isActive === false}
         >
           <SelectTrigger className="w-36 h-8 text-xs border border-border/70 shadow-none px-2 focus:ring-1 focus:ring-ring bg-background">
             <SelectValue>
@@ -269,6 +307,14 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
             className="pl-9 h-9 text-xs bg-background"
           />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-36" aria-label="Account status"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active users</SelectItem>
+            <SelectItem value="inactive">Inactive users</SelectItem>
+            <SelectItem value="all">All users</SelectItem>
+          </SelectContent>
+        </Select>
         {searchQuery && (
           <Button
             variant="ghost"
@@ -325,7 +371,7 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
                               {user.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="flex flex-col">
-                              <span className="font-semibold text-xs text-foreground">{user.name}</span>
+                              <span className="font-semibold text-xs text-foreground">{user.name} {user.isActive === false && <Badge variant="secondary">Inactive</Badge>}</span>
                               <span className="font-mono text-[11px] text-muted-foreground">
                                 {user.email}
                               </span>
@@ -405,10 +451,11 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-xs text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/40 cursor-pointer"
+                                disabled={user.role === 'admin' || user.email === 'admin@elevate.com'}
                                 onClick={() => handleDeleteClick(user)}
                               >
                                 <IconTrash className="mr-2 h-3.5 w-3.5" />
-                                Delete Account
+                                {user.isActive === false ? 'Review / Reactivate Account' : 'Deactivate Account'}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -434,31 +481,53 @@ export function UsersTable({ users, roles, branches }: UsersTableProps) {
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => { if (!isDeleting) setShowDeleteDialog(open); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User Account?</AlertDialogTitle>
+            <AlertDialogTitle>{permanentDeleteMode ? 'Permanently delete' : userToDelete?.isActive === false ? 'Reactivate' : 'Deactivate'} {userToDelete?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently remove access for{' '}
-              <span className="font-semibold text-foreground">{userToDelete?.name}</span>.
+              {permanentDeleteMode ? 'This unused account and its login credentials will be permanently deleted. This cannot be undone. Deletion is blocked if any CRM work or history is found.' : userToDelete?.isActive === false
+                ? 'Restore login access. Previously transferred work stays with its current owner.'
+                : 'Login access will end immediately. Completed work, notes, calls, invoices, payments and original authors will be preserved.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {loadingPreview && <p role="status" className="text-sm">Loading pending work...</p>}
+          {previewError && <p role="alert" className="text-sm text-destructive">{previewError}</p>}
+          {preview && <div className="max-h-[50vh] overflow-y-auto space-y-3 text-sm">
+            {!permanentDeleteMode && userToDelete?.isActive !== false && <>
+              <p>{preview.jobs.length} pending jobs  /  {preview.leads.length} pending job leads  /  {preview.enquiries.length} enquiries  /  {preview.followUps.length} pending follow-ups  /  {preview.surveys.length} surveys/projects</p>
+              {preview.jobs.length > 0 && <div><strong>Jobs to transfer</strong><ul className="list-disc pl-5">{preview.jobs.map(job => <li key={job.id}>{job.name}</li>)}</ul></div>}
+              {preview.leads.length > 0 && <details><summary>Pending job leads ({preview.leads.length})</summary><ul>{preview.leads.map(lead => <li key={lead.id}>{lead.job.name}  -  {lead.id}</li>)}</ul></details>}
+              {preview.enquiries.length > 0 && <details><summary>Enquiries to transfer ({preview.enquiries.length})</summary><ul>{preview.enquiries.map(enquiry => <li key={enquiry.id}>{enquiry.candidateName}</li>)}</ul></details>}
+              {needsTransfer && <div className="space-y-2">
+                <label htmlFor="replacement-user" className="font-medium">Transfer pending work to</label>
+                <Select value={replacementId} onValueChange={setReplacementId} disabled={isDeleting}>
+                  <SelectTrigger id="replacement-user"><SelectValue placeholder="Select an active user" /></SelectTrigger>
+                  <SelectContent>{preview.candidates.map(candidate => <SelectItem key={candidate.id} value={candidate.id}>{candidate.name}{candidate.branch ? ` (${branches.find(b => b.id === candidate.branch)?.name || candidate.branch})` : ''}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">Only eligible active users in the work&apos;s branch and administrators are listed. Follow-ups move with their enquiry.</p>
+              </div>}
+              {!needsTransfer && <p>No pending work needs to be transferred.</p>}
+            </>}
+            {preview.canPermanentlyDelete && !permanentDeleteMode && <Button variant="link" className="text-destructive px-0" disabled={isDeleting} onClick={() => setPermanentDeleteMode(true)}>Permanently delete unused account...</Button>}
+            {preview.history.length > 0 && <div className="border-t pt-3"><strong>Account history</strong><ul className="space-y-2 mt-2">{preview.history.map(event => <li key={event.id}>{event.action === 'DEACTIVATED' ? 'Deactivated' : event.action === 'REACTIVATED' ? 'Reactivated' : 'Deleted unused account'} by {event.actorName} on {formatDate(event.createdAt)}{event.replacementName && `; pending work transferred to ${event.replacementName}`}</li>)}</ul></div>}
+          </div>}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleDeleteCancel} disabled={isDeleting} className="text-xs">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
+              onClick={(event) => { event.preventDefault(); handleDeleteConfirm(); }}
+              disabled={isDeleting || loadingPreview || !preview || (userToDelete?.isActive !== false && needsTransfer && !replacementId)}
               className="bg-rose-600 hover:bg-rose-700 text-xs text-white"
             >
               {isDeleting ? (
                 <>
                   <div className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Deleting...
+                  Saving...
                 </>
               ) : (
-                'Delete User'
+                permanentDeleteMode ? 'Permanently Delete Account' : userToDelete?.isActive === false ? 'Reactivate User' : needsTransfer ? 'Transfer & Deactivate' : 'Deactivate User'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

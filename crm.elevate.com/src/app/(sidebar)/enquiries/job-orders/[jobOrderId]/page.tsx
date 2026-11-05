@@ -43,6 +43,7 @@ import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 
 interface JobOrder {
+  transferHistory?: { id: string; userName: string; actorName: string; replacementName: string | null; createdAt: string }[];
   id: string;
   name: string;
   description?: string | null;
@@ -309,6 +310,14 @@ export default function JobOrderDetailPage({ params }: { params: Promise<{ jobOr
       </div>
 
       {/* Main Content */}
+      {!!jobOrder.transferHistory?.length && <Card>
+        <CardHeader><CardTitle className="text-sm">Assignment history</CardTitle></CardHeader>
+        <CardContent><ul className="space-y-2 text-xs text-muted-foreground">
+          {jobOrder.transferHistory.map(event => <li key={event.id}>
+            Transferred from {event.userName} to {event.replacementName} by {event.actorName} on {format(new Date(event.createdAt), 'MMM dd, yyyy HH:mm')} when the previous user was deactivated.
+          </li>)}
+        </ul></CardContent>
+      </Card>}
       <Card className="shadow-md border-0">
         <CardHeader className="px-6 py-4 border-b bg-muted/5">
           <div className="flex items-center justify-between">

@@ -162,7 +162,6 @@ export default function PendingJobOrdersClient({
   };
 
   const handleDeleteJobOrder = async (jobOrderId: string) => {
-    if (!confirm('Are you sure you want to delete this job order?')) return;
 
     try {
       const result = await deleteJobOrder(jobOrderId);

@@ -55,18 +55,36 @@ export const updateUserPermissionsAction = actionClient
     })
   )
   .action(async ({ parsedInput }) => {
-    return backendPost<{ success: boolean; message: any; }>('/workflows/auth/updateUserPermissionsAction', { input: parsedInput ?? {} });
+    return backendPost<{ success: boolean; message: string; }>('/workflows/auth/updateUserPermissionsAction', { input: parsedInput ?? {} });
   });
 
+export type UserDeactivationPreview = {
+  canPermanentlyDelete: boolean;
+  revision: string;
+  jobs: { id: string; name: string; branchId: string }[];
+  leads: { id: string; job: { name: string; branchId: string } }[];
+  enquiries: { id: string; candidateName: string; branchId: string | null }[];
+  surveys: { id: string }[];
+  followUps: { id: string; enquiryId: string }[];
+  candidates: { id: string; name: string; role: string | null; branch: string | null }[];
+  history: { id: string; action: string; actorName: string; replacementName: string | null; createdAt: string }[];
+};
+
+export async function getUserDeactivationPreview(userId: string) {
+  return backendPost<UserDeactivationPreview>('/workflows/auth/getUserDeactivationPreview', { input: { userId } });
+}
+
+export const reactivateUserAction = actionClient
+  .inputSchema(z.object({ userId: z.string() }))
+  .action(async ({ parsedInput }) => backendPost<{ success: boolean; message: string }>('/workflows/auth/reactivateUserAction', { input: parsedInput }));
+
+export const permanentlyDeleteUnusedUserAction = actionClient
+  .inputSchema(z.object({ userId: z.string() }))
+  .action(async ({ parsedInput }) => backendPost<{ success: boolean; message: string }>('/workflows/auth/permanentlyDeleteUnusedUserAction', { input: parsedInput }));
+
 export const deleteUserAction = actionClient
-  .inputSchema(
-    z.object({
-      userId: z.string(),
-    })
-  )
-  .action(async ({ parsedInput }) => {
-    return backendPost<{ success: boolean; message: string }>('/workflows/auth/deleteUserAction', { input: parsedInput ?? {} });
-  });
+  .inputSchema(z.object({ userId: z.string(), replacementId: z.string().optional(), revision: z.string() }))
+  .action(async ({ parsedInput }) => backendPost<{ success: boolean; message: string }>('/workflows/auth/deleteUserAction', { input: parsedInput }));
 
 export const updateProfileAction = actionClient
   .inputSchema(

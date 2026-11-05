@@ -86,6 +86,7 @@ export const BillingStatus = {
 export type BillingStatus = typeof BillingStatus[keyof typeof BillingStatus];
 
 export interface User {
+  isActive?: boolean;
   id: string;
   name: string;
   email: string;
