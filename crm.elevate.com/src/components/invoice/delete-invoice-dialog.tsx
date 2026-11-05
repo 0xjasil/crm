@@ -36,12 +36,12 @@ export function DeleteInvoiceDialog({
 
     try {
       await deleteInvoiceRecord(invoiceId);
-      toast.success('Invoice deleted successfully');
+      toast.success('Invoice cancelled successfully');
       onSuccess?.();
       onOpenChange?.(false);
     } catch (error) {
-      console.error('Error deleting invoice:', error);
-      toast.error('Failed to delete invoice');
+      console.error('Error cancelling invoice:', error);
+      toast.error('Failed to cancel invoice');
     } finally {
       setIsDeleting(false);
     }
@@ -51,10 +51,10 @@ export function DeleteInvoiceDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+          <AlertDialogTitle>Cancel Invoice</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete invoice <strong>{invoiceNumber}</strong>? This action
-            cannot be undone and will permanently remove the invoice and all associated data.
+            Are you sure you want to cancel invoice <strong>{invoiceNumber}</strong>? Payment history will be retained.
+            Public sharing and payment reminders will be disabled.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -64,7 +64,7 @@ export function DeleteInvoiceDialog({
             disabled={isDeleting}
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
           >
-            {isDeleting ? 'Deleting...' : 'Delete Invoice'}
+            {isDeleting ? 'Cancelling...' : 'Cancel Invoice'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

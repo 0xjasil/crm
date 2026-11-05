@@ -78,7 +78,7 @@ test('enquiry mutation requests map form fields and surface API errors', async (
     assert.equal(options?.method, 'PATCH');
     assert.equal(new Headers(options?.headers).get('Authorization'), 'Bearer test-token');
     assert.deepEqual(JSON.parse(String(options?.body)), {
-      email: '', notes: '', sourceId: null, source: null, serviceId: null, preferredCourseId: null,
+      email: null, notes: null, sourceId: null, source: null, serviceId: null, preferredCourseId: null,
     });
     return Response.json({ success: true, data: { id: 'enquiry/1' } });
   };

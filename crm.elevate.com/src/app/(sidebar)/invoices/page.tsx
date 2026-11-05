@@ -321,7 +321,7 @@ export default function InvoicesPage() {
                               className="text-xs text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/40"
                             >
                               <Trash2 className="mr-2 h-3.5 w-3.5" />
-                              Delete
+                              Cancel Invoice
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

@@ -17,7 +17,7 @@ export function calculateFeeDetails(
   const balance = admission.balance || 0;
   const semesterFee = admission.course.semesterFee;
 
-  const totalFee = calculateTotalFee(admission.course);
+  const totalFee = calculateTotalFee({ ...admission.course, agentCommission: admission.agentCommission ?? null });
 
   return {
     totalFee,
