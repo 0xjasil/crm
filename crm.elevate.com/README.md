@@ -2,6 +2,7 @@
 
 CRM frontend built with Next.js 15, React 19, TypeScript, Tailwind CSS, and shadcn/ui. All CRM data comes from the Fastify API over HTTP. This application has no database or ORM.
 
+
 ## Current structure
 
 - `src/app/`: App Router pages, layouts, and local API handlers. The authenticated shell lives in `(sidebar)/layout.tsx`.
